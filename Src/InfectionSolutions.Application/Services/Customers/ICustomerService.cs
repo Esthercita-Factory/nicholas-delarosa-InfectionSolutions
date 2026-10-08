@@ -7,6 +7,9 @@ public interface ICustomerService
 {
     Task<PagedResponse<CustomerResponse>> ListAsync(CustomerQuery query, CancellationToken cancellationToken = default);
 
+    /// <summary>Todos los que cumplen el filtro, sin paginar (exportaciones).</summary>
+    Task<IReadOnlyList<CustomerResponse>> ListAllAsync(CustomerQuery query, CancellationToken cancellationToken = default);
+
     Task<Result<CustomerResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>Clientes activos para el formulario de ventas.</summary>

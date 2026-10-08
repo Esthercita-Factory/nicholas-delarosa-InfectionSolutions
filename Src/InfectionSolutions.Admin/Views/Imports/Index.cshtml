@@ -1,0 +1,102 @@
+@model InfectionSolutions.Admin.ViewModels.Imports.ImportUploadViewModel
+@{
+    ViewData["Title"] = "Importar Excel";
+}
+
+<section class="page-header">
+    <div>
+        <h1>Carga masiva desde Excel</h1>
+        <p class="text-muted mb-0">Importa productos, clientes y ventas desde un archivo, aunque vengan mezclados en las mismas filas.</p>
+    </div>
+    <div>
+        <a asp-action="Template" class="btn btn-outline-primary"><i class="bi bi-file-earmark-arrow-down me-1"></i> Descargar plantilla de ejemplo</a>
+    </div>
+</section>
+
+<div class="row g-3">
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-body p-4">
+                <form asp-action="Index" method="post" enctype="multipart/form-data" id="import-form">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger small py-2" role="alert"></div>
+
+                    <label asp-for="File" class="form-label fw-semibold"></label>
+                    <label class="dropzone" for="File" id="dropzone">
+                        <i class="bi bi-file-earmark-spreadsheet display-6"></i>
+                        <span class="fw-semibold mt-2" id="dropzone-text">Arrastra el archivo aquí o haz clic para elegirlo</span>
+                        <span class="small text-muted">Archivos .xlsx de hasta 10 MB</span>
+                        <input asp-for="File" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="visually-hidden">
+                    </label>
+                    <span asp-validation-for="File" class="text-danger small"></span>
+
+                    <button type="submit" class="btn btn-primary w-100 mt-4" id="import-submit" data-no-busy>
+                        <i class="bi bi-upload me-1"></i> Importar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header"><h2 class="panel-title mb-0">¿Cómo funciona?</h2></div>
+            <div class="card-body p-4">
+                <ol class="small mb-3 ps-3 import-steps">
+                    <li>El sistema busca en cada hoja la fila de encabezados y reconoce las columnas por su nombre, con sinónimos: <em>Código, Ref o SKU</em>; <em>Cédula, NIT o Documento</em>; <em>Valor o Precio</em>.</li>
+                    <li>Separa cada fila en <strong>producto</strong> (por código), <strong>cliente</strong> (por documento) y <strong>línea de venta</strong> (si trae cantidad).</li>
+                    <li>Si el producto o el cliente ya existe, actualiza solo los datos que trae el archivo; si no, lo crea.</li>
+                    <li>Las líneas con la misma factura forman una venta. Las ventas importadas son históricas: <strong>no descuentan stock</strong>.</li>
+                    <li>Las filas con errores se omiten y quedan en un <strong>log descargable</strong>; el resto se guarda en una sola transacción.</li>
+                </ol>
+
+                <div class="table-responsive">
+                    <table class="table table-sm small mb-0">
+                        <thead><tr><th>Para crear</th><th>Datos obligatorios</th></tr></thead>
+                        <tbody>
+                        <tr><td>Producto</td><td>Código, nombre y precio</td></tr>
+                        <tr><td>Cliente</td><td>Documento, nombre, correo, teléfono y edad</td></tr>
+                        <tr><td>Venta</td><td>Código del producto, documento del cliente y cantidad</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const input = document.getElementById('File');
+            const zona = document.getElementById('dropzone');
+            const texto = document.getElementById('dropzone-text');
+            const form = document.getElementById('import-form');
+            const boton = document.getElementById('import-submit');
+
+            input.addEventListener('change', function () {
+                texto.textContent = input.files.length ? input.files[0].name : 'Arrastra el archivo aquí o haz clic para elegirlo';
+                zona.classList.toggle('has-file', input.files.length > 0);
+            });
+
+            ['dragenter', 'dragover'].forEach(function (evento) {
+                zona.addEventListener(evento, function (e) { e.preventDefault(); zona.classList.add('dragging'); });
+            });
+            ['dragleave', 'drop'].forEach(function (evento) {
+                zona.addEventListener(evento, function (e) { e.preventDefault(); zona.classList.remove('dragging'); });
+            });
+            zona.addEventListener('drop', function (e) {
+                if (e.dataTransfer.files.length) {
+                    input.files = e.dataTransfer.files;
+                    input.dispatchEvent(new Event('change'));
+                }
+            });
+
+            form.addEventListener('submit', function () {
+                if (input.files.length) {
+                    boton.disabled = true;
+                    boton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Importando...';
+                }
+            });
+        })();
+    </script>
+}

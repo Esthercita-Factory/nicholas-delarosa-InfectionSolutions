@@ -7,6 +7,9 @@ public interface IProductService
 {
     Task<PagedResponse<ProductResponse>> ListAsync(ProductQuery query, CancellationToken cancellationToken = default);
 
+    /// <summary>Todos los que cumplen el filtro, sin paginar (exportaciones).</summary>
+    Task<IReadOnlyList<ProductResponse>> ListAllAsync(ProductQuery query, CancellationToken cancellationToken = default);
+
     Task<Result<ProductResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<string>> GetCategoriesAsync(CancellationToken cancellationToken = default);

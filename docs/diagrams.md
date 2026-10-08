@@ -183,6 +183,31 @@ classDiagram
             <<static>>
             +ParseAge(text) Result~int~
         }
+        class IReceiptStorage {
+            <<interface>>
+        }
+        class ReceiptService {
+            +Generate(SaleResponse) byte[]
+            +SaveAsync(SaleResponse) string
+            +GetAsync(saleId) Result~ReceiptFile~
+        }
+        class ExportService {
+            +ExportProductsAsync(query, format) ExportFile
+            +ExportCustomersAsync(query, format) ExportFile
+            +ExportSalesAsync(query, format) ExportFile
+        }
+        class BulkImportService {
+            +ImportAsync(stream, fileName, userId) ImportResult
+            +BuildTemplate() byte[]
+        }
+        class ExcelImportReader {
+            <<static>>
+            +Read(stream, result) RawSheet[]
+        }
+        class ImportNormalizer {
+            <<static>>
+            +Normalize(sheets, result) NormalizedImport
+        }
     }
 
     namespace Infrastructure {
@@ -192,6 +217,7 @@ classDiagram
         class SaleRepository
         class UnitOfWork
         class IdentitySeeder
+        class FileSystemReceiptStorage
     }
 
     namespace Admin {
@@ -199,6 +225,7 @@ classDiagram
         class CustomersController
         class SalesController
         class AccountController
+        class ImportsController
     }
 
     Sale "1" *-- "1..*" SaleDetail
@@ -227,6 +254,17 @@ classDiagram
     CustomersController ..> CustomerService
     CustomersController ..> InputParser
     SalesController ..> SaleService
+    SalesController ..> ReceiptService
+    SaleService ..> ReceiptService
+    ReceiptService ..> IReceiptStorage
+    FileSystemReceiptStorage ..|> IReceiptStorage
+    ProductsController ..> ExportService
+    ImportsController ..> BulkImportService
+    BulkImportService ..> ExcelImportReader
+    BulkImportService ..> ImportNormalizer
+    BulkImportService ..> IProductRepository
+    BulkImportService ..> ICustomerRepository
+    BulkImportService ..> ISaleRepository
 ```
 
 ## Flujo de una venta
@@ -250,6 +288,30 @@ sequenceDiagram
     S->>R: CountByNumberPrefixAsync("V-yyyyMMdd-")
     S->>R: AddAsync(venta)
     S->>DB: SaveChanges + COMMIT
+    S->>S: genera el recibo PDF (QuestPDF)
+    S->>R: IReceiptStorage.SaveAsync → wwwroot/recibos/{número}.pdf
     S-->>C: Result<SaleResponse>
     C-->>A: Redirect a /Sales/Details/{id}
+```
+
+## Flujo de la carga masiva
+
+```mermaid
+flowchart TD
+    A[.xlsx subido por el administrador] --> B[ExcelImportReader<br/>EPPlus]
+    B -->|por cada hoja| C{¿Fila de encabezados con<br/>2 o más columnas conocidas?}
+    C -- no --> L[(Log)]
+    C -- sí --> D[HeaderMatcher<br/>sinónimos → campo]
+    D --> E[ImportNormalizer]
+    E --> E1[Producto por código]
+    E --> E2[Cliente por documento]
+    E --> E3[Línea de venta si hay cantidad]
+    E -. formato inválido o dato faltante .-> L
+    E1 & E2 & E3 --> F[BulkImportService<br/>una transacción]
+    F --> F1[Upsert de productos]
+    F --> F2[Upsert de clientes<br/>correo único]
+    F --> F3[Ventas por factura<br/>o por cliente y día]
+    F1 & F2 & F3 -. reglas de negocio .-> L
+    F --> G[(PostgreSQL)]
+    L --> H[Pantalla de resultado y CSV descargable]
 ```

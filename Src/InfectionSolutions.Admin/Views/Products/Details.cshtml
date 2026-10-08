@@ -5,10 +5,10 @@
 
 <section class="page-header">
     <div>
-        <h1 class="h3 mb-1">@Model.Name</h1>
-        <p class="text-muted mb-0">
-            @Model.Sku ·
-            <span class="badge rounded-pill @(Model.IsActive ? "text-bg-success" : "text-bg-secondary")">@(Model.IsActive ? "Activo" : "Inactivo")</span>
+        <h1>@Model.Name</h1>
+        <p class="d-flex gap-3 align-items-center">
+            <span>Código @Model.Sku</span>
+            <span class="badge @(Model.IsActive ? "text-bg-success" : "text-bg-secondary")">@(Model.IsActive ? "A la venta" : "Inactivo")</span>
         </p>
     </div>
     <div class="d-flex gap-2">
@@ -17,43 +17,41 @@
     </div>
 </section>
 
-<div class="row g-3">
-    <div class="col-12 col-lg-8">
-        <div class="card h-100">
-            <div class="card-body p-4">
-                <dl class="row mb-0 detail-list">
-                    <dt class="col-sm-4">Categoría</dt>
-                    <dd class="col-sm-8">@Model.Category</dd>
-                    <dt class="col-sm-4">Unidad de venta</dt>
-                    <dd class="col-sm-8">@Model.Unit</dd>
-                    <dt class="col-sm-4">Descripción</dt>
-                    <dd class="col-sm-8">@(Model.Description ?? "—")</dd>
-                    <dt class="col-sm-4">Creado</dt>
-                    <dd class="col-sm-8">@Model.CreatedAt.ToLocalTime().ToString("g")</dd>
-                    <dt class="col-sm-4">Última actualización</dt>
-                    <dd class="col-sm-8">@(Model.UpdatedAt?.ToLocalTime().ToString("g") ?? "—")</dd>
-                </dl>
-            </div>
-        </div>
+<dl class="ledger">
+    <div class="ledger-item is-key">
+        <dt>Precio sin IVA</dt>
+        <dd>
+            <span class="ledger-value">@Model.Price.ToString("C2")</span>
+            <span class="ledger-note">Con IVA: @((Model.Price * (1 + InfectionSolutions.Domain.Services.InventoryCalculator.TaxRate)).ToString("C2"))</span>
+        </dd>
     </div>
-    <div class="col-12 col-lg-4">
-        <div class="stat-card mb-3">
-            <span class="stat-icon bg-primary-subtle text-primary"><i class="bi bi-tag"></i></span>
-            <div>
-                <div class="stat-label">Precio sin IVA</div>
-                <div class="stat-value">@Model.Price.ToString("C2")</div>
-                <div class="stat-hint">Con IVA: @((Model.Price * (1 + InfectionSolutions.Domain.Services.InventoryCalculator.TaxRate)).ToString("C2"))</div>
-            </div>
-        </div>
-        <div class="stat-card">
-            <span class="stat-icon bg-warning-subtle text-warning-emphasis"><i class="bi bi-boxes"></i></span>
-            <div>
-                <div class="stat-label">Stock disponible</div>
-                <div class="stat-value">@Model.Stock</div>
-                <div class="stat-hint">@Model.Unit</div>
-            </div>
-        </div>
+    <div class="ledger-item">
+        <dt>Stock disponible</dt>
+        <dd>
+            <span class="ledger-value">@Model.Stock</span>
+            <span class="ledger-note">@Model.Unit.ToLowerInvariant()</span>
+        </dd>
     </div>
-</div>
+    <div class="ledger-item">
+        <dt>Categoría</dt>
+        <dd>
+            <span class="ledger-value">@Model.Category</span>
+            <span class="ledger-note">venta por @Model.Unit.ToLowerInvariant()</span>
+        </dd>
+    </div>
+</dl>
+
+<section class="card">
+    <div class="card-body p-4">
+        <dl class="row mb-0 detail-list">
+            <dt class="col-sm-3">Descripción</dt>
+            <dd class="col-sm-9">@(Model.Description ?? "Sin descripción")</dd>
+            <dt class="col-sm-3">Creado</dt>
+            <dd class="col-sm-9">@Model.CreatedAt.ToLocalTime().ToString("g")</dd>
+            <dt class="col-sm-3">Última actualización</dt>
+            <dd class="col-sm-9">@(Model.UpdatedAt?.ToLocalTime().ToString("g") ?? "Sin cambios desde que se creó")</dd>
+        </dl>
+    </div>
+</section>
 
 <a asp-action="Index" class="btn btn-link px-0 mt-3"><i class="bi bi-arrow-left me-1"></i> Volver al listado</a>

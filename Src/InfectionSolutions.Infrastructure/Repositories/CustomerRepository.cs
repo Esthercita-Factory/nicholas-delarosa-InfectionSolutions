@@ -17,25 +17,10 @@ public sealed class CustomerRepository : ICustomerRepository
 
     public async Task<PagedResult<Customer>> ListAsync(CustomerFilter filter, PageRequest page, CancellationToken cancellationToken = default)
     {
-        var consulta = _db.Customers.AsNoTracking();
-
-        if (!string.IsNullOrWhiteSpace(filter.Term))
-        {
-            var patron = $"%{filter.Term}%";
-            consulta = consulta.Where(c =>
-                EF.Functions.ILike(c.FullName, patron)
-                || EF.Functions.ILike(c.Document, patron));
-        }
-
-        if (filter.OnlyActive)
-        {
-            consulta = consulta.Where(c => c.IsActive);
-        }
+        var consulta = Filtrar(_db.Customers.AsNoTracking(), filter);
 
         var total = await consulta.CountAsync(cancellationToken);
-        var items = await consulta
-            .OrderByDescending(c => c.IsActive)
-            .ThenBy(c => c.FullName)
+        var items = await Ordenar(consulta)
             .Skip(page.Skip)
             .Take(page.Take)
             .ToListAsync(cancellationToken);
@@ -43,8 +28,31 @@ public sealed class CustomerRepository : ICustomerRepository
         return new PagedResult<Customer> { Items = items, TotalCount = total };
     }
 
+    public async Task<IReadOnlyList<Customer>> ListAllAsync(CustomerFilter filter, CancellationToken cancellationToken = default)
+        => await Ordenar(Filtrar(_db.Customers.AsNoTracking(), filter)).ToListAsync(cancellationToken);
+
     public Task<Customer?> FindByIdAsync(Guid id, CancellationToken cancellationToken = default)
         => _db.Customers.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<Customer>> FindByDocumentsAsync(IReadOnlyCollection<string> documents, CancellationToken cancellationToken = default)
+    {
+        if (documents.Count == 0)
+        {
+            return [];
+        }
+
+        return await _db.Customers.Where(c => documents.Contains(c.Document)).ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Customer>> FindByEmailsAsync(IReadOnlyCollection<string> emails, CancellationToken cancellationToken = default)
+    {
+        if (emails.Count == 0)
+        {
+            return [];
+        }
+
+        return await _db.Customers.Where(c => emails.Contains(c.Email)).ToListAsync(cancellationToken);
+    }
 
     public async Task<IReadOnlyList<Customer>> GetActiveAsync(CancellationToken cancellationToken = default)
         => await _db.Customers
@@ -66,4 +74,26 @@ public sealed class CustomerRepository : ICustomerRepository
         => await _db.Customers.AddAsync(customer, cancellationToken);
 
     public void Remove(Customer customer) => _db.Customers.Remove(customer);
+
+    private static IQueryable<Customer> Filtrar(IQueryable<Customer> consulta, CustomerFilter filter)
+    {
+        if (!string.IsNullOrWhiteSpace(filter.Term))
+        {
+            var patron = SearchPatterns.Contains(filter.Term);
+
+            // "1.020.458" encuentra el documento 1020458796: se compara tambien sin separadores.
+            var soloDocumento = FieldRules.NormalizeDocument(filter.Term);
+            var documento = soloDocumento.Length == 0 ? patron : SearchPatterns.Contains(soloDocumento);
+            consulta = consulta.Where(c =>
+                EF.Functions.ILike(EF.Functions.Unaccent(c.FullName), EF.Functions.Unaccent(patron))
+                || EF.Functions.ILike(c.Document, patron)
+                || EF.Functions.ILike(c.Document, documento)
+                || EF.Functions.ILike(c.Email, patron));
+        }
+
+        return filter.Active is { } activo ? consulta.Where(c => c.IsActive == activo) : consulta;
+    }
+
+    private static IQueryable<Customer> Ordenar(IQueryable<Customer> consulta)
+        => consulta.OrderByDescending(c => c.IsActive).ThenBy(c => c.FullName);
 }

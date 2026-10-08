@@ -16,7 +16,7 @@
             var marcado = p.Id == seleccionado ? " selected" : string.Empty;
             var sinStock = p.Stock == 0 ? " disabled" : string.Empty;
             html.AppendHtml($"<option value=\"{p.Id}\" data-price=\"{precio}\" data-stock=\"{p.Stock}\" data-unit=\"{System.Net.WebUtility.HtmlEncode(p.Unit)}\"{marcado}{sinStock}>");
-            html.Append($"{p.Name} ({p.Sku}) · stock {p.Stock}");
+            html.Append($"{p.Name} ({p.Sku}), {p.Stock} disponibles");
             html.AppendHtml("</option>");
         }
         return html;
@@ -25,7 +25,7 @@
 
 <section class="page-header">
     <div>
-        <h1 class="h3 mb-1">Nueva venta</h1>
+        <h1>Nueva venta</h1>
         <p class="text-muted mb-0">Selecciona el cliente y agrega los productos. El stock se descuenta al guardar.</p>
     </div>
 </section>
@@ -44,7 +44,7 @@
                                 <option value="">Selecciona un cliente...</option>
                                 @foreach (var c in Model.Customers)
                                 {
-                                    <option value="@c.Id" selected="@(c.Id == Model.CustomerId)">@c.FullName · @c.Document</option>
+                                    <option value="@c.Id" selected="@(c.Id == Model.CustomerId)">@c.FullName, @c.Document</option>
                                 }
                             </select>
                             <span asp-validation-for="CustomerId" class="text-danger small"></span>
@@ -64,7 +64,7 @@
 
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span class="fw-semibold">Productos</span>
+                    <h2 class="panel-title mb-0">Productos</h2>
                     <button type="button" class="btn btn-sm btn-outline-primary" id="add-line"><i class="bi bi-plus-lg me-1"></i> Agregar producto</button>
                 </div>
                 <div class="table-responsive">
@@ -103,12 +103,11 @@
         <div class="col-12 col-xl-4">
             <div class="card summary-card">
                 <div class="card-body p-4">
-                    <h2 class="h6 text-uppercase text-muted mb-3">Resumen</h2>
+                    <h2 class="panel-title mb-3">Resumen</h2>
                     <div class="d-flex justify-content-between mb-2"><span>Subtotal</span><span id="sum-subtotal">$0.00</span></div>
                     <div class="d-flex justify-content-between mb-2"><span>IVA (@((tasaIva * 100).ToString("0"))%)</span><span id="sum-tax">$0.00</span></div>
-                    <hr>
-                    <div class="d-flex justify-content-between fs-5 fw-bold"><span>Total</span><span id="sum-total">$0.00</span></div>
-                    <p class="small text-muted mt-3 mb-4">Los valores son una vista previa; el total definitivo lo calcula el servidor con los precios vigentes.</p>
+                    <div class="total-block"><span>Total</span><strong id="sum-total">$0.00</strong></div>
+                    <p class="small text-muted mt-3 mb-4">Vista previa con los precios actuales. El total se confirma al registrar la venta.</p>
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary"><i class="bi bi-check2-circle me-1"></i> Registrar venta</button>
                         <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>

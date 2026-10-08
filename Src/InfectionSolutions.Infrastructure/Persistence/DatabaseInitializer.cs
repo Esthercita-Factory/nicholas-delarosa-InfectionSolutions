@@ -1,5 +1,7 @@
+using InfectionSolutions.Application.Abstractions;
 using InfectionSolutions.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -27,5 +29,10 @@ public static class DatabaseInitializer
 
         await db.Database.MigrateAsync(cancellationToken);
         await IdentitySeeder.SeedAsync(provider);
+
+        if (provider.GetRequiredService<IConfiguration>().GetValue("SeedDemoData", false))
+        {
+            await DemoDataSeeder.SeedAsync(db, provider.GetRequiredService<IClock>(), logger, cancellationToken);
+        }
     }
 }

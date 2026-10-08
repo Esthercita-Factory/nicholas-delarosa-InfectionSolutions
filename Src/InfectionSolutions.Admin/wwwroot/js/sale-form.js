@@ -9,7 +9,9 @@
     const tbody = document.getElementById('sale-lines');
     const template = document.getElementById('line-template');
     const taxRate = parseFloat(form.dataset.taxRate || '0');
-    const currency = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 2 });
+    // Mismo formato que el resto del panel: $ 1,250.50 (cultura es-CO con punto decimal).
+    const numero = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const currency = { format: function (valor) { return '$ ' + numero.format(valor); } };
 
     // Clave unica para Lines.Index: no importa que haya huecos al quitar filas.
     let nextIndex = tbody.querySelectorAll('.sale-line').length;
@@ -38,7 +40,16 @@
         const tax = Math.round(subtotal * taxRate * 100) / 100;
         document.getElementById('sum-subtotal').textContent = currency.format(subtotal);
         document.getElementById('sum-tax').textContent = currency.format(tax);
-        document.getElementById('sum-total').textContent = currency.format(subtotal + tax);
+        const totalEl = document.getElementById('sum-total');
+        const nuevo = currency.format(subtotal + tax);
+        if (totalEl.textContent !== nuevo) {
+            totalEl.textContent = nuevo;
+            // Pequeno "salto" para que se note que el total cambio.
+            totalEl.classList.remove('is-bump');
+            void totalEl.offsetWidth;
+            totalEl.classList.add('is-bump');
+            setTimeout(function () { totalEl.classList.remove('is-bump'); }, 180);
+        }
     }
 
     function addLine() {

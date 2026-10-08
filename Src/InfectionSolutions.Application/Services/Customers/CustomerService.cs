@@ -1,4 +1,3 @@
-using System.Net.Mail;
 using InfectionSolutions.Application.Abstractions;
 using InfectionSolutions.Application.Common;
 using InfectionSolutions.Application.Dtos.Customers;
@@ -23,9 +22,16 @@ public sealed class CustomerService : ICustomerService
     {
         var page = new PageRequest { Page = query.Page, PageSize = query.PageSize };
         var termino = string.IsNullOrWhiteSpace(query.Q) ? null : query.Q.Trim();
-        var result = await _customers.ListAsync(new CustomerFilter(termino, query.OnlyActive), page, cancellationToken);
+        var result = await _customers.ListAsync(new CustomerFilter(termino, query.Active), page, cancellationToken);
 
         return PagedResponse<CustomerResponse>.From(result, page, ToResponse);
+    }
+
+    public async Task<IReadOnlyList<CustomerResponse>> ListAllAsync(CustomerQuery query, CancellationToken cancellationToken = default)
+    {
+        var termino = string.IsNullOrWhiteSpace(query.Q) ? null : query.Q.Trim();
+        var customers = await _customers.ListAllAsync(new CustomerFilter(termino, query.Active), cancellationToken);
+        return customers.Select(ToResponse).ToList();
     }
 
     public async Task<Result<CustomerResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -108,9 +114,11 @@ public sealed class CustomerService : ICustomerService
             return Error.Validation("El documento es obligatorio.", nameof(request.Document));
         }
 
-        if (!request.Document.Trim().All(char.IsLetterOrDigit))
+        if (!FieldRules.IsValidDocument(FieldRules.NormalizeDocument(request.Document)))
         {
-            return Error.Validation("El documento solo puede contener letras y números.", nameof(request.Document));
+            return Error.Validation(
+                $"El documento debe tener entre {FieldRules.DocumentMinLength} y {FieldRules.DocumentMaxLength} letras o números.",
+                nameof(request.Document));
         }
 
         if (string.IsNullOrWhiteSpace(request.FullName))
@@ -123,14 +131,14 @@ public sealed class CustomerService : ICustomerService
             return Error.Validation($"La edad debe estar entre {InputParser.MinAge} y {InputParser.MaxAge} años.", nameof(request.Age));
         }
 
-        if (!EsCorreoValido(request.Email))
+        if (!FieldRules.IsValidEmail(request.Email))
         {
             return Error.Validation("El correo no tiene un formato válido.", nameof(request.Email));
         }
 
-        if (string.IsNullOrWhiteSpace(request.Phone))
+        if (!FieldRules.IsValidPhone(request.Phone))
         {
-            return Error.Validation("El teléfono es obligatorio.", nameof(request.Phone));
+            return Error.Validation("El teléfono es obligatorio y solo admite números, espacios, guiones, paréntesis y + al inicio.", nameof(request.Phone));
         }
 
         return null;
@@ -142,12 +150,12 @@ public sealed class CustomerService : ICustomerService
     /// </summary>
     private async Task<Error?> ValidarDuplicadosAsync(CustomerRequest request, Guid? excluirId, CancellationToken cancellationToken)
     {
-        if (await _customers.DocumentExistsAsync(NormalizarDocumento(request.Document), excluirId, cancellationToken))
+        if (await _customers.DocumentExistsAsync(FieldRules.NormalizeDocument(request.Document), excluirId, cancellationToken))
         {
             return Error.Conflict("Ya existe un cliente con ese documento.", nameof(request.Document));
         }
 
-        if (await _customers.EmailExistsAsync(NormalizarCorreo(request.Email), excluirId, cancellationToken))
+        if (await _customers.EmailExistsAsync(FieldRules.NormalizeEmail(request.Email), excluirId, cancellationToken))
         {
             return Error.Conflict("Ya existe un cliente con ese correo.", nameof(request.Email));
         }
@@ -157,10 +165,10 @@ public sealed class CustomerService : ICustomerService
 
     private static void AplicarCambios(CustomerRequest request, Customer customer)
     {
-        customer.Document = NormalizarDocumento(request.Document);
+        customer.Document = FieldRules.NormalizeDocument(request.Document);
         customer.FullName = request.FullName.Trim();
         customer.Age = request.Age;
-        customer.Email = NormalizarCorreo(request.Email);
+        customer.Email = FieldRules.NormalizeEmail(request.Email);
         customer.Phone = request.Phone.Trim();
         customer.Address = string.IsNullOrWhiteSpace(request.Address) ? null : request.Address.Trim();
         customer.IsActive = request.IsActive;
@@ -178,27 +186,4 @@ public sealed class CustomerService : ICustomerService
         customer.UserId is not null,
         customer.CreatedAt,
         customer.UpdatedAt);
-
-    private static bool EsCorreoValido(string? email)
-    {
-        if (string.IsNullOrWhiteSpace(email))
-        {
-            return false;
-        }
-
-        try
-        {
-            var direccion = new MailAddress(email.Trim());
-            return direccion.Address == email.Trim();
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
-    }
-
-    private static string NormalizarDocumento(string document) => document.Trim().ToUpperInvariant();
-
-    /// <summary>email es unique: se guarda en minusculas para no duplicar por mayusculas.</summary>
-    private static string NormalizarCorreo(string email) => email.Trim().ToLowerInvariant();
 }

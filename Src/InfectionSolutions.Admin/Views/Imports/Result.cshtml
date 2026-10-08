@@ -1,0 +1,113 @@
+@using InfectionSolutions.Application.Services.BulkImport
+@model InfectionSolutions.Admin.ViewModels.Imports.ImportResultViewModel
+@{
+    ViewData["Title"] = "Resultado de la importación";
+    var r = Model.Result;
+    var estado = !r.Saved ? "danger" : r.ErrorCount > 0 ? "warning" : "success";
+    var titulo = !r.Saved
+        ? "No se guardó ningún cambio"
+        : r.ErrorCount > 0 ? "Importación completada con errores" : "Importación completada";
+    var icono = estado switch { "danger" => "bi-x-octagon", "warning" => "bi-exclamation-triangle", _ => "bi-check-circle" };
+}
+
+<section class="page-header">
+    <div>
+        <h1>Resultado de la importación</h1>
+        <p>@r.FileName, @r.SheetsRead @(r.SheetsRead == 1 ? "hoja" : "hojas") y @r.RowsRead filas leídas</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        @if (Model.LogFileName is not null)
+        {
+            <a asp-action="Log" asp-route-id="@Model.LogFileName" class="btn btn-outline-secondary"><i class="bi bi-download me-1"></i> Descargar log (CSV)</a>
+        }
+        <a asp-action="Index" class="btn btn-primary"><i class="bi bi-upload me-1"></i> Importar otro archivo</a>
+    </div>
+</section>
+
+<div class="alert alert-@estado d-flex align-items-center gap-2">
+    <i class="bi @icono fs-5"></i>
+    <div>
+        <strong>@titulo.</strong>
+        @r.TotalChanges cambios guardados, @r.ErrorCount errores y @r.WarningCount advertencias.
+    </div>
+</div>
+
+<dl class="ledger">
+    <div class="ledger-item">
+        <dt>Productos nuevos</dt>
+        <dd><span class="ledger-value">@r.ProductsCreated</span><span class="ledger-note">@r.ProductsUpdated actualizados</span></dd>
+    </div>
+    <div class="ledger-item">
+        <dt>Clientes nuevos</dt>
+        <dd><span class="ledger-value">@r.CustomersCreated</span><span class="ledger-note">@r.CustomersUpdated actualizados</span></dd>
+    </div>
+    <div class="ledger-item">
+        <dt>Ventas registradas</dt>
+        <dd><span class="ledger-value">@r.SalesCreated</span><span class="ledger-note">históricas, sin mover stock</span></dd>
+    </div>
+    <div class="ledger-item">
+        <dt>Filas con error</dt>
+        <dd><span class="ledger-value @(r.ErrorCount > 0 ? "text-danger" : null)">@r.ErrorCount</span><span class="ledger-note">@r.WarningCount advertencias</span></dd>
+    </div>
+</dl>
+
+<section class="card">
+    <div class="card-header d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-2">
+        <h2 class="panel-title mb-0">Log de la importación</h2>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Filtrar log" id="log-filter">
+            <button type="button" class="btn btn-outline-secondary active" data-level="all">Todo (@r.Log.Count)</button>
+            <button type="button" class="btn btn-outline-danger" data-level="Error">Errores (@r.ErrorCount)</button>
+            <button type="button" class="btn btn-outline-warning" data-level="Warning">Advertencias (@r.WarningCount)</button>
+            <button type="button" class="btn btn-outline-info" data-level="Info">Info</button>
+        </div>
+    </div>
+    <div class="table-responsive log-table">
+        <table class="table table-sm align-middle mb-0">
+            <thead>
+            <tr>
+                <th class="ps-4" style="width: 130px">Nivel</th>
+                <th>Hoja</th>
+                <th class="text-end">Fila</th>
+                <th>Campo</th>
+                <th class="pe-4">Detalle</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var entrada in r.Log.OrderByDescending(e => e.Level))
+            {
+                var clase = entrada.Level switch
+                {
+                    ImportLogLevel.Error => "text-bg-danger",
+                    ImportLogLevel.Warning => "text-bg-warning",
+                    _ => "text-bg-light border"
+                };
+                <tr data-level="@entrada.Level">
+                    <td class="ps-4"><span class="badge @clase">@ImportResult.Nivel(entrada.Level)</span></td>
+                    <td class="text-nowrap">@entrada.Sheet</td>
+                    <td class="text-end">@entrada.Row</td>
+                    <td class="text-muted">@entrada.Field</td>
+                    <td class="pe-4">@entrada.Message</td>
+                </tr>
+            }
+            @if (r.Log.Count == 0)
+            {
+                <tr><td colspan="5" class="text-center text-muted py-4">Sin novedades.</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</section>
+
+@section Scripts {
+    <script>
+        document.getElementById('log-filter').addEventListener('click', function (e) {
+            const boton = e.target.closest('button');
+            if (!boton) return;
+            this.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === boton));
+            const nivel = boton.dataset.level;
+            document.querySelectorAll('.log-table tbody tr[data-level]').forEach(function (fila) {
+                fila.hidden = nivel !== 'all' && fila.dataset.level !== nivel;
+            });
+        });
+    </script>
+}

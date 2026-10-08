@@ -485,3 +485,7 @@ $RECYCLE.BIN/
 Historias_de_usuario_M6/
 Repos/
 CLAUDE.md
+
+# Archivos generados en tiempo de ejecucion (S2)
+Src/InfectionSolutions.Admin/wwwroot/recibos/
+Src/InfectionSolutions.Admin/App_Data/

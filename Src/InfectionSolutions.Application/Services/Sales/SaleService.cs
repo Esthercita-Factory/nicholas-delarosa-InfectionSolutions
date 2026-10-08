@@ -1,9 +1,11 @@
 using InfectionSolutions.Application.Abstractions;
 using InfectionSolutions.Application.Common;
 using InfectionSolutions.Application.Dtos.Sales;
+using InfectionSolutions.Application.Services.Receipts;
 using InfectionSolutions.Domain.Entities;
 using InfectionSolutions.Domain.Enums;
 using InfectionSolutions.Domain.Services;
+using Microsoft.Extensions.Logging;
 
 namespace InfectionSolutions.Application.Services.Sales;
 
@@ -16,19 +18,25 @@ public sealed class SaleService : ISaleService
     private readonly ICustomerRepository _customers;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
+    private readonly IReceiptService _receipts;
+    private readonly ILogger<SaleService> _logger;
 
     public SaleService(
         ISaleRepository sales,
         IProductRepository products,
         ICustomerRepository customers,
         IUnitOfWork unitOfWork,
-        IClock clock)
+        IClock clock,
+        IReceiptService receipts,
+        ILogger<SaleService> logger)
     {
         _sales = sales;
         _products = products;
         _customers = customers;
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _receipts = receipts;
+        _logger = logger;
     }
 
     public async Task<PagedResponse<SaleListItemResponse>> ListAsync(SaleQuery query, CancellationToken cancellationToken = default)
@@ -37,7 +45,14 @@ public sealed class SaleService : ISaleService
         var termino = string.IsNullOrWhiteSpace(query.Q) ? null : query.Q.Trim();
         var result = await _sales.ListAsync(new SaleFilter(termino, query.Status), page, cancellationToken);
 
-        return PagedResponse<SaleListItemResponse>.From(result, page, ToListItem);
+        return PagedResponse<SaleListItemResponse>.From(result, page, SaleMappings.ToListItem);
+    }
+
+    public async Task<IReadOnlyList<SaleListItemResponse>> ListAllAsync(SaleQuery query, CancellationToken cancellationToken = default)
+    {
+        var termino = string.IsNullOrWhiteSpace(query.Q) ? null : query.Q.Trim();
+        var sales = await _sales.ListAllAsync(new SaleFilter(termino, query.Status), cancellationToken);
+        return sales.Select(SaleMappings.ToListItem).ToList();
     }
 
     public async Task<Result<SaleResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -46,7 +61,7 @@ public sealed class SaleService : ISaleService
 
         return sale is null
             ? Result.Failure<SaleResponse>(Error.EntityNotFound("Venta", id))
-            : Result.Success(ToResponse(sale));
+            : Result.Success(SaleMappings.ToResponse(sale));
     }
 
     public async Task<Result<SaleResponse>> CreateAsync(SaleRequest request, string? userId, CancellationToken cancellationToken = default)
@@ -134,15 +149,20 @@ public sealed class SaleService : ISaleService
         sale.Tax = totales.Tax;
         sale.Total = totales.Total;
 
-        var prefijo = SaleNumberGenerator.DayPrefix(ahora);
+        // El consecutivo es por dia de Colombia: a las 8 p. m. ya es mañana en UTC.
+        var diaDeNegocio = DisplayFormats.ToBusinessTime(ahora);
+        var prefijo = SaleNumberGenerator.DayPrefix(diaDeNegocio);
         var consecutivo = await _sales.CountByNumberPrefixAsync(prefijo, cancellationToken) + 1;
-        sale.SaleNumber = SaleNumberGenerator.Generate(ahora, consecutivo);
+        sale.SaleNumber = SaleNumberGenerator.Generate(diaDeNegocio, consecutivo);
 
         await _sales.AddAsync(sale, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         await transaccion.CommitAsync(cancellationToken);
 
-        return Result.Success(ToResponse(sale));
+        var respuesta = SaleMappings.ToResponse(sale);
+        await GuardarReciboAsync(respuesta, cancellationToken);
+
+        return Result.Success(respuesta);
     }
 
     public async Task<Result> CancelAsync(Guid id, CancellationToken cancellationToken = default)
@@ -169,35 +189,25 @@ public sealed class SaleService : ISaleService
         sale.CancelledAt = ahora;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+        // El recibo se regenera para que diga ANULADA.
+        await GuardarReciboAsync(SaleMappings.ToResponse(sale), cancellationToken);
+
         return Result.Success();
     }
 
-    private static SaleListItemResponse ToListItem(Sale sale) => new(
-        sale.Id,
-        sale.SaleNumber,
-        sale.SaleDate,
-        sale.Customer.FullName,
-        sale.Customer.Document,
-        sale.Details.Count,
-        sale.Total,
-        sale.Status);
-
-    private static SaleResponse ToResponse(Sale sale) => new(
-        sale.Id,
-        sale.SaleNumber,
-        sale.SaleDate,
-        sale.Status,
-        sale.CustomerId,
-        sale.Customer.FullName,
-        sale.Customer.Document,
-        sale.Customer.Email,
-        sale.Customer.Phone,
-        sale.Subtotal,
-        sale.Tax,
-        sale.Total,
-        sale.Notes,
-        sale.CancelledAt,
-        sale.Details
-            .Select(d => new SaleDetailResponse(d.ProductId, d.Product.Sku, d.Product.Name, d.Product.Unit, d.Quantity, d.UnitPrice, d.LineTotal))
-            .ToList());
+    /// <summary>
+    /// La venta ya quedo guardada: si el PDF falla no se deshace, se registra
+    /// y el recibo se vuelve a generar cuando alguien lo descargue.
+    /// </summary>
+    private async Task GuardarReciboAsync(SaleResponse sale, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _receipts.SaveAsync(sale, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "No se pudo generar el recibo de la venta {SaleNumber}", sale.SaleNumber);
+        }
+    }
 }

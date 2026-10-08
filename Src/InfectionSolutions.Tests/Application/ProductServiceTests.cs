@@ -41,6 +41,17 @@ public class ProductServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_ReutilizaLaCategoriaRegistradaSinMayusculasNiTildes()
+    {
+        _products.FindCategoryAsync("Cementos", Arg.Any<CancellationToken>()).Returns("Cementos");
+        _products.FindCategoryAsync("CÉMENTOS", Arg.Any<CancellationToken>()).Returns("Cementos");
+
+        var resultado = await _service.CreateAsync(Solicitud() with { Category = "CÉMENTOS" });
+
+        Assert.Equal("Cementos", resultado.Value!.Category);
+    }
+
+    [Fact]
     public async Task CreateAsync_ConSkuDuplicado_DevuelveConflictoSinGuardar()
     {
         _products.SkuExistsAsync("CEM-50", null, Arg.Any<CancellationToken>()).Returns(true);

@@ -4,7 +4,9 @@ using InfectionSolutions.Admin.ViewModels.Sales;
 using InfectionSolutions.Application.Common;
 using InfectionSolutions.Application.Dtos.Sales;
 using InfectionSolutions.Application.Services.Customers;
+using InfectionSolutions.Application.Services.Exports;
 using InfectionSolutions.Application.Services.Products;
+using InfectionSolutions.Application.Services.Receipts;
 using InfectionSolutions.Application.Services.Sales;
 using InfectionSolutions.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
@@ -16,12 +18,21 @@ public class SalesController : Controller
     private readonly ISaleService _saleService;
     private readonly ICustomerService _customerService;
     private readonly IProductService _productService;
+    private readonly IReceiptService _receiptService;
+    private readonly IExportService _exportService;
 
-    public SalesController(ISaleService saleService, ICustomerService customerService, IProductService productService)
+    public SalesController(
+        ISaleService saleService,
+        ICustomerService customerService,
+        IProductService productService,
+        IReceiptService receiptService,
+        IExportService exportService)
     {
         _saleService = saleService;
         _customerService = customerService;
         _productService = productService;
+        _receiptService = receiptService;
+        _exportService = exportService;
     }
 
     public async Task<IActionResult> Index(string? q, SaleStatus? status, int page = 1, CancellationToken cancellationToken = default)
@@ -34,6 +45,31 @@ public class SalesController : Controller
             Q = q,
             Status = status
         });
+    }
+
+    /// <summary>Exporta a Excel o PDF lo mismo que muestra el listado con sus filtros (todas las paginas).</summary>
+    public async Task<IActionResult> Export(string? q, SaleStatus? status, ExportFormat format = ExportFormat.Excel, CancellationToken cancellationToken = default)
+    {
+        var archivo = await _exportService.ExportSalesAsync(new SaleQuery { Q = q, Status = status }, format, cancellationToken);
+        return File(archivo.Content, archivo.ContentType, archivo.FileName);
+    }
+
+    /// <summary>
+    /// Recibo PDF guardado en wwwroot/recibos. download=false lo abre en el
+    /// navegador; si no existe (venta importada) se genera en el momento.
+    /// </summary>
+    public async Task<IActionResult> Receipt(Guid id, bool download = true, CancellationToken cancellationToken = default)
+    {
+        var resultado = await _receiptService.GetAsync(id, cancellationToken);
+        if (resultado.IsFailure)
+        {
+            return NotFound();
+        }
+
+        var recibo = resultado.Value!;
+        return download
+            ? File(recibo.Content, ReceiptFile.ContentType, recibo.FileName)
+            : File(recibo.Content, ReceiptFile.ContentType);
     }
 
     public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)
@@ -70,7 +106,7 @@ public class SalesController : Controller
             var resultado = await _saleService.CreateAsync(modelo.ToRequest(), userId, cancellationToken);
             if (resultado.IsSuccess)
             {
-                TempData[TempDataKeys.Mensaje] = $"La venta {resultado.Value!.SaleNumber} se registró por {resultado.Value.Total:C2}.";
+                TempData[TempDataKeys.Mensaje] = $"La venta {resultado.Value!.SaleNumber} se registró por {resultado.Value.Total:C2} y su recibo PDF está listo para descargar.";
                 return RedirectToAction(nameof(Details), new { id = resultado.Value.Id });
             }
 
@@ -100,7 +136,7 @@ public class SalesController : Controller
 
         if (resultado.IsSuccess)
         {
-            TempData[TempDataKeys.Mensaje] = "La venta se anuló y el stock de sus productos se devolvió al inventario.";
+            TempData[TempDataKeys.Mensaje] = "La venta se anuló, el stock de sus productos se devolvió al inventario y el recibo quedó marcado como ANULADA.";
         }
         else
         {

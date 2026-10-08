@@ -1,0 +1,119 @@
+@model IReadOnlyList<DailySales>
+@using System.Globalization
+@{
+    // Geometria en unidades del viewBox: el SVG escala con el ancho de la tarjeta.
+    const double ancho = 760, alto = 250, izq = 58, der = 6, arriba = 10, abajo = 30;
+    var areaAncho = ancho - izq - der;
+    var areaAlto = alto - arriba - abajo;
+    var cultura = CultureInfo.InvariantCulture;
+    var es = CultureInfo.GetCultureInfo("es-CO");
+
+    // Escala "bonita": tope redondeado a 1, 2, 2.5 o 5 por potencia de 10, en 4 lineas.
+    var maximo = Model.Count == 0 ? 0m : Model.Max(d => d.Total);
+    double Tope(double valor)
+    {
+        if (valor <= 0) return 4;
+        var paso = valor / 4;
+        var potencia = Math.Pow(10, Math.Floor(Math.Log10(paso)));
+        var factor = paso / potencia;
+        var redondo = factor <= 1 ? 1 : factor <= 2 ? 2 : factor <= 2.5 ? 2.5 : factor <= 5 ? 5 : 10;
+        return redondo * potencia * 4;
+    }
+    var tope = Tope((double)maximo);
+
+    string Corto(double valor) => valor switch
+    {
+        >= 1_000_000 => "$" + (valor / 1_000_000).ToString("0.#", cultura) + " M",
+        >= 1_000 => "$" + (valor / 1_000).ToString("0.#", cultura) + " mil",
+        _ => "$" + valor.ToString("0", cultura)
+    };
+
+    var hueco = areaAncho / Math.Max(Model.Count, 1);
+    var barra = Math.Min(hueco * 0.62, 34);
+    var hoy = Model.Count > 0 ? Model[^1].Day : default;
+    var total = Model.Sum(d => d.Total);
+
+    // <text> es una etiqueta reservada de Razor dentro de bloques de codigo:
+    // las etiquetas de texto del SVG se escriben con este ayudante.
+    Microsoft.AspNetCore.Html.IHtmlContent Etiqueta(double x, double y, string anclaje, string contenido, bool negrita = false)
+        => new Microsoft.AspNetCore.Html.HtmlString(string.Format(cultura,
+            "<text class=\"axis-label\" x=\"{0:0.##}\" y=\"{1:0.##}\" text-anchor=\"{2}\"{3}>{4}</text>",
+            x, y, anclaje, negrita ? " font-weight=\"700\"" : string.Empty, System.Net.WebUtility.HtmlEncode(contenido)));
+    var ventas = Model.Sum(d => d.Count);
+}
+
+<div class="chart" data-chart>
+    <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-3">
+        <p class="mb-0">
+            <span class="fw-semibold">@total.ToString("C0")</span>
+            <span class="text-muted">en @ventas @(ventas == 1 ? "venta" : "ventas") durante los últimos @Model.Count días</span>
+        </p>
+        <div class="chart-legend" aria-hidden="true">
+            <span><i style="background: var(--ocre)"></i>Ingresos del día</span>
+            <span><i style="background: var(--grafito)"></i>Hoy</span>
+        </div>
+    </div>
+
+    <div class="chart-scroll">
+    <svg viewBox="0 0 @ancho.ToString(cultura) @alto.ToString(cultura)" role="img" aria-labelledby="chart-titulo">
+        <title id="chart-titulo">Ingresos por día de los últimos @Model.Count días. El detalle está en la tabla siguiente.</title>
+
+        @for (var i = 0; i <= 4; i++)
+        {
+            var valor = tope / 4 * i;
+            var y = arriba + areaAlto - areaAlto * (valor / tope);
+            <line class="@(i == 0 ? "baseline" : "grid-line")" x1="@izq.ToString(cultura)" x2="@((ancho - der).ToString(cultura))" y1="@y.ToString("0.##", cultura)" y2="@y.ToString("0.##", cultura)" />
+            @Etiqueta(izq - 10, y + 4, "end", Corto(valor))
+        }
+
+        @for (var i = 0; i < Model.Count; i++)
+        {
+            var dia = Model[i];
+            var centro = izq + hueco * i + hueco / 2;
+            var altoBarra = tope <= 0 ? 0 : areaAlto * ((double)dia.Total / tope);
+            var x = centro - barra / 2;
+            var y = arriba + areaAlto - altoBarra;
+            var radio = Math.Min(4, Math.Min(barra / 2, altoBarra));
+            var esHoy = dia.Day == hoy;
+
+            @if (altoBarra > 0)
+            {
+                // Esquinas superiores redondeadas, base recta sobre la linea cero.
+                var trazo = string.Format(cultura,
+                    "M{0:0.##},{1:0.##} V{2:0.##} Q{0:0.##},{3:0.##} {4:0.##},{3:0.##} H{5:0.##} Q{6:0.##},{3:0.##} {6:0.##},{2:0.##} V{1:0.##} Z",
+                    x, arriba + areaAlto, y + radio, y, x + radio, x + barra - radio, x + barra);
+                <path class="bar @(esHoy ? "is-today" : null)" data-index="@i" d="@trazo" style="animation-delay: @((0.2 + i * 0.035).ToString("0.###", cultura))s" />
+            }
+
+            @if (i % 2 == Model.Count % 2 || esHoy)
+            {
+                @Etiqueta(centro, alto - 8, "middle", esHoy ? "Hoy" : dia.Day.ToString("d MMM", es).TrimEnd('.'), esHoy)
+            }
+
+            <rect class="hit" tabindex="0" x="@((izq + hueco * i).ToString("0.##", cultura))" y="@arriba.ToString(cultura)" width="@hueco.ToString("0.##", cultura)" height="@areaAlto.ToString(cultura)"
+                  data-index="@i"
+                  data-day="@(esHoy ? "Hoy, " : string.Empty)@dia.Day.ToString("dddd d 'de' MMMM", es)"
+                  data-total="@dia.Total.ToString("C0")"
+                  data-count="@(dia.Count == 0 ? "Sin ventas" : dia.Count == 1 ? "1 venta" : $"{dia.Count} ventas")"
+                  aria-label="@dia.Day.ToString("d 'de' MMMM", es): @dia.Total.ToString("C0")" />
+        }
+    </svg>
+    </div>
+
+    <div class="chart-tip" data-chart-tip aria-hidden="true">
+        <span data-tip-day></span>
+        <strong data-tip-total></strong>
+        <span data-tip-count></span>
+    </div>
+
+    <table class="visually-hidden">
+        <caption>Ingresos por día</caption>
+        <thead><tr><th scope="col">Día</th><th scope="col">Ventas</th><th scope="col">Ingresos</th></tr></thead>
+        <tbody>
+        @foreach (var dia in Model)
+        {
+            <tr><td>@dia.Day.ToString("d 'de' MMMM", es)</td><td>@dia.Count</td><td>@dia.Total.ToString("C0")</td></tr>
+        }
+        </tbody>
+    </table>
+</div>

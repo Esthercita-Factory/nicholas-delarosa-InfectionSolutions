@@ -59,4 +59,11 @@ public sealed class DashboardQuery : IDashboardQuery
             LowStockProducts = stockBajo
         };
     }
+
+    public async Task<IReadOnlyList<SalePoint>> GetCompletedSalesSinceAsync(DateTimeOffset from, CancellationToken cancellationToken = default)
+        => await _db.Sales
+            .AsNoTracking()
+            .Where(s => s.Status == SaleStatus.Completed && s.SaleDate >= from)
+            .Select(s => new SalePoint(s.SaleDate, s.Total))
+            .ToListAsync(cancellationToken);
 }

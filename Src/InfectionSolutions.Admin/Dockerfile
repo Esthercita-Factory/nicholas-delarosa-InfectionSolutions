@@ -21,5 +21,8 @@ ENV ASPNETCORE_URLS=http://+:8080 \
     UseHttpsRedirection=false
 EXPOSE 8080
 COPY --from=build /app/publish .
+# Carpetas que la app escribe en tiempo de ejecucion: recibos PDF y logs de importacion.
+RUN mkdir -p /app/wwwroot/recibos /app/App_Data/import-logs \
+    && chown -R $APP_UID /app/wwwroot/recibos /app/App_Data
 USER $APP_UID
 ENTRYPOINT ["dotnet", "InfectionSolutions.Admin.dll"]

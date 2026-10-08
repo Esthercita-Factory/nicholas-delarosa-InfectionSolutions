@@ -11,8 +11,13 @@ using Microsoft.AspNetCore.Localization;
 var builder = WebApplication.CreateBuilder(args);
 
 // Capas compartidas con la API: casos de uso, persistencia e Identity.
-builder.Services.AddApplication();
+builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// Recibos PDF en wwwroot/recibos. Se descargan desde SalesController.Receipt;
+// la politica global exige sesion de administrador para cualquier ruta, asi
+// que /recibos/*.pdf tampoco queda publico.
+builder.Services.AddFileReceiptStorage(Path.Combine(builder.Environment.WebRootPath, "recibos"));
 
 // El panel autentica con la cookie de Identity.
 builder.Services

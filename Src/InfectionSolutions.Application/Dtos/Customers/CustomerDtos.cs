@@ -35,7 +35,8 @@ public sealed record CustomerQuery
     /// <summary>Busca por nombre o documento.</summary>
     public string? Q { get; init; }
 
-    public bool OnlyActive { get; init; }
+    /// <summary>null = todos, true = solo activos, false = solo inactivos.</summary>
+    public bool? Active { get; init; }
 
     public int Page { get; init; } = 1;
 

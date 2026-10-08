@@ -17,31 +17,10 @@ public sealed class ProductRepository : IProductRepository
 
     public async Task<PagedResult<Product>> ListAsync(ProductFilter filter, PageRequest page, CancellationToken cancellationToken = default)
     {
-        var consulta = _db.Products.AsNoTracking();
-
-        if (!string.IsNullOrWhiteSpace(filter.Term))
-        {
-            var patron = $"%{filter.Term}%";
-            consulta = consulta.Where(p =>
-                EF.Functions.ILike(p.Name, patron)
-                || EF.Functions.ILike(p.Sku, patron)
-                || EF.Functions.ILike(p.Category, patron));
-        }
-
-        if (!string.IsNullOrWhiteSpace(filter.Category))
-        {
-            consulta = consulta.Where(p => p.Category == filter.Category);
-        }
-
-        if (filter.OnlyActive)
-        {
-            consulta = consulta.Where(p => p.IsActive);
-        }
+        var consulta = Filtrar(_db.Products.AsNoTracking(), filter);
 
         var total = await consulta.CountAsync(cancellationToken);
-        var items = await consulta
-            .OrderByDescending(p => p.IsActive)
-            .ThenBy(p => p.Name)
+        var items = await Ordenar(consulta)
             .Skip(page.Skip)
             .Take(page.Take)
             .ToListAsync(cancellationToken);
@@ -49,8 +28,21 @@ public sealed class ProductRepository : IProductRepository
         return new PagedResult<Product> { Items = items, TotalCount = total };
     }
 
+    public async Task<IReadOnlyList<Product>> ListAllAsync(ProductFilter filter, CancellationToken cancellationToken = default)
+        => await Ordenar(Filtrar(_db.Products.AsNoTracking(), filter)).ToListAsync(cancellationToken);
+
     public Task<Product?> FindByIdAsync(Guid id, CancellationToken cancellationToken = default)
         => _db.Products.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
+    public async Task<IReadOnlyList<Product>> FindBySkusAsync(IReadOnlyCollection<string> skus, CancellationToken cancellationToken = default)
+    {
+        if (skus.Count == 0)
+        {
+            return [];
+        }
+
+        return await _db.Products.Where(p => skus.Contains(p.Sku)).ToListAsync(cancellationToken);
+    }
 
     public async Task<IReadOnlyList<Product>> FindByIdsForUpdateAsync(IReadOnlyCollection<Guid> ids, CancellationToken cancellationToken = default)
     {
@@ -81,6 +73,16 @@ public sealed class ProductRepository : IProductRepository
             .OrderBy(c => c)
             .ToListAsync(cancellationToken);
 
+    public async Task<string?> FindCategoryAsync(string category, CancellationToken cancellationToken = default)
+    {
+        var categoria = SearchPatterns.Exact(category);
+        return await _db.Products
+            .AsNoTracking()
+            .Where(p => EF.Functions.ILike(EF.Functions.Unaccent(p.Category), EF.Functions.Unaccent(categoria)))
+            .Select(p => p.Category)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public Task<bool> SkuExistsAsync(string sku, Guid? excludedId = null, CancellationToken cancellationToken = default)
         => _db.Products.AnyAsync(p => p.Sku == sku && (excludedId == null || p.Id != excludedId), cancellationToken);
 
@@ -91,4 +93,27 @@ public sealed class ProductRepository : IProductRepository
         => await _db.Products.AddAsync(product, cancellationToken);
 
     public void Remove(Product product) => _db.Products.Remove(product);
+
+    private static IQueryable<Product> Filtrar(IQueryable<Product> consulta, ProductFilter filter)
+    {
+        if (!string.IsNullOrWhiteSpace(filter.Term))
+        {
+            var patron = SearchPatterns.Contains(filter.Term);
+            consulta = consulta.Where(p =>
+                EF.Functions.ILike(EF.Functions.Unaccent(p.Name), EF.Functions.Unaccent(patron))
+                || EF.Functions.ILike(EF.Functions.Unaccent(p.Sku), EF.Functions.Unaccent(patron))
+                || EF.Functions.ILike(EF.Functions.Unaccent(p.Category), EF.Functions.Unaccent(patron)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Category))
+        {
+            var categoria = SearchPatterns.Exact(filter.Category);
+            consulta = consulta.Where(p => EF.Functions.ILike(EF.Functions.Unaccent(p.Category), EF.Functions.Unaccent(categoria)));
+        }
+
+        return filter.Active is { } activo ? consulta.Where(p => p.IsActive == activo) : consulta;
+    }
+
+    private static IQueryable<Product> Ordenar(IQueryable<Product> consulta)
+        => consulta.OrderByDescending(p => p.IsActive).ThenBy(p => p.Name);
 }

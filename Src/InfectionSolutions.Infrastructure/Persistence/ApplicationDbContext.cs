@@ -20,6 +20,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         base.OnModelCreating(modelBuilder);
 
+        // unaccent: busquedas que no distinguen tildes ("cemento" encuentra "Cémento").
+        modelBuilder.HasPostgresExtension("unaccent");
+
         // Las configuraciones de Persistence/Configurations se cargan solas.
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
     }

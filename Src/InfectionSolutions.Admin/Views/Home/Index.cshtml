@@ -1,70 +1,66 @@
 @model DashboardSummary
+@using System.Globalization
 @{
     ViewData["Title"] = "Inicio";
+    var minimo = InfectionSolutions.Application.Services.Dashboard.DashboardService.LowStockThreshold;
+    var ahora = DateTime.Now;
+    var saludo = ahora.Hour < 12 ? "Buenos días" : ahora.Hour < 19 ? "Buenas tardes" : "Buenas noches";
+    var hoy = ahora.ToString("dddd d 'de' MMMM", CultureInfo.GetCultureInfo("es-CO"));
 }
 
 <section class="page-header">
     <div>
-        <h1 class="h3 mb-1">Resumen del negocio</h1>
-        <p class="text-muted mb-0">Métricas generales de productos, clientes y ventas.</p>
+        <h1>@saludo</h1>
+        <p>Hoy es @hoy. Así va el mostrador este mes.</p>
     </div>
     <div class="d-flex gap-2">
-        <a asp-controller="Sales" asp-action="Create" class="btn btn-primary"><i class="bi bi-cart-plus me-1"></i> Nueva venta</a>
+        <a asp-controller="Products" asp-action="Create" class="btn btn-outline-secondary"><i class="bi bi-plus-square"></i>Agregar producto</a>
+        <a asp-controller="Sales" asp-action="Create" class="btn btn-primary"><i class="bi bi-cart-plus"></i>Registrar venta</a>
     </div>
 </section>
 
-<div class="row g-3 mb-4">
-    <div class="col-12 col-sm-6 col-xl-3">
-        <a asp-controller="Products" asp-action="Index" class="stat-card">
-            <span class="stat-icon bg-primary-subtle text-primary"><i class="bi bi-box-seam"></i></span>
-            <div>
-                <div class="stat-label">Productos</div>
-                <div class="stat-value">@Model.TotalProducts</div>
-                <div class="stat-hint">@Model.ActiveProducts activos en catálogo</div>
-            </div>
-        </a>
+<section class="kpis" aria-label="Indicadores">
+    <div class="kpi is-key">
+        <span class="kpi-label"><span class="kpi-icon"><i class="bi bi-cash-stack"></i></span>Ingresos del mes</span>
+        <span class="kpi-value" data-count="@decimal.Round(Model.RevenueThisMonth, 0).ToString(CultureInfo.InvariantCulture)" data-format="money">@Model.RevenueThisMonth.ToString("C0")</span>
+        <span class="kpi-note">IVA incluido, @Model.SalesThisMonth @(Model.SalesThisMonth == 1 ? "venta" : "ventas")</span>
     </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-        <a asp-controller="Customers" asp-action="Index" class="stat-card">
-            <span class="stat-icon bg-success-subtle text-success"><i class="bi bi-people"></i></span>
-            <div>
-                <div class="stat-label">Clientes</div>
-                <div class="stat-value">@Model.TotalCustomers</div>
-                <div class="stat-hint">registrados</div>
-            </div>
-        </a>
-    </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-        <a asp-controller="Sales" asp-action="Index" class="stat-card">
-            <span class="stat-icon bg-warning-subtle text-warning-emphasis"><i class="bi bi-receipt"></i></span>
-            <div>
-                <div class="stat-label">Ventas</div>
-                <div class="stat-value">@Model.TotalSales</div>
-                <div class="stat-hint">@Model.SalesThisMonth este mes</div>
-            </div>
-        </a>
-    </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-        <div class="stat-card">
-            <span class="stat-icon bg-info-subtle text-info-emphasis"><i class="bi bi-cash-stack"></i></span>
-            <div>
-                <div class="stat-label">Ingresos del mes</div>
-                <div class="stat-value">@Model.RevenueThisMonth.ToString("C0")</div>
-                <div class="stat-hint">IVA incluido</div>
-            </div>
-        </div>
-    </div>
-</div>
+    <a class="kpi" asp-controller="Sales" asp-action="Index">
+        <i class="bi bi-arrow-up-right kpi-go" aria-hidden="true"></i>
+        <span class="kpi-label"><span class="kpi-icon"><i class="bi bi-receipt"></i></span>Ventas registradas</span>
+        <span class="kpi-value" data-count="@Model.TotalSales">@Model.TotalSales</span>
+        <span class="kpi-note">sin contar las anuladas</span>
+    </a>
+    <a class="kpi" asp-controller="Products" asp-action="Index">
+        <i class="bi bi-arrow-up-right kpi-go" aria-hidden="true"></i>
+        <span class="kpi-label"><span class="kpi-icon"><i class="bi bi-box-seam"></i></span>Productos</span>
+        <span class="kpi-value" data-count="@Model.TotalProducts">@Model.TotalProducts</span>
+        <span class="kpi-note">@Model.ActiveProducts a la venta</span>
+    </a>
+    <a class="kpi" asp-controller="Customers" asp-action="Index">
+        <i class="bi bi-arrow-up-right kpi-go" aria-hidden="true"></i>
+        <span class="kpi-label"><span class="kpi-icon"><i class="bi bi-people"></i></span>Clientes</span>
+        <span class="kpi-value" data-count="@Model.TotalCustomers">@Model.TotalCustomers</span>
+        <span class="kpi-note">registrados</span>
+    </a>
+</section>
 
-<div class="row g-3">
-    <div class="col-12 col-xl-7">
-        <div class="card h-100">
+<div class="row g-4">
+    <div class="col-12 col-xl-8 d-flex flex-column gap-4">
+        <section class="card">
+            <div class="card-header">
+                <h2 class="panel-title mb-0">Ingresos de las últimas dos semanas</h2>
+            </div>
+            <partial name="_SalesChart" model="Model.SalesByDay" />
+        </section>
+
+        <section class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span class="fw-semibold">Últimas ventas</span>
-                <a asp-controller="Sales" asp-action="Index" class="small">Ver todas</a>
+                <h2 class="panel-title mb-0">Últimas ventas</h2>
+                <a asp-controller="Sales" asp-action="Index" class="btn btn-sm btn-outline-secondary">Ver todas</a>
             </div>
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle">
                     <thead>
                     <tr>
                         <th class="ps-4">Venta</th>
@@ -84,11 +80,11 @@
                             <td class="text-end pe-4">
                                 @if (venta.IsCancelled)
                                 {
-                                    <span class="badge rounded-pill text-bg-secondary">Anulada</span>
+                                    <span class="badge text-bg-secondary">Anulada</span>
                                 }
                                 else
                                 {
-                                    @venta.Total.ToString("C2")
+                                    <span class="fw-semibold">@venta.Total.ToString("C2")</span>
                                 }
                             </td>
                         </tr>
@@ -97,40 +93,52 @@
                     {
                         <tr>
                             <td colspan="3" class="text-center text-muted py-5">
-                                Aún no hay ventas. <a asp-controller="Sales" asp-action="Create">Registra la primera</a>.
+                                Todavía no hay ventas. <a asp-controller="Sales" asp-action="Create" class="text-decoration-underline">Registra la primera</a>.
                             </td>
                         </tr>
                     }
                     </tbody>
                 </table>
             </div>
-        </div>
+        </section>
     </div>
 
-    <div class="col-12 col-xl-5">
-        <div class="card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <span class="fw-semibold">Stock bajo</span>
-                <span class="badge rounded-pill text-bg-warning">≤ @InfectionSolutions.Application.Services.Dashboard.DashboardService.LowStockThreshold unidades</span>
+    <div class="col-12 col-xl-4">
+        <section class="card">
+            <div class="card-header">
+                <h2 class="panel-title mb-0">Por reponer</h2>
+                <p class="small text-muted mb-0 mt-1">Productos a la venta con @minimo unidades o menos.</p>
             </div>
-            <ul class="list-group list-group-flush">
+            <ul class="list-unstyled mb-0">
                 @foreach (var producto in Model.LowStockProducts)
                 {
-                    <li class="list-group-item d-flex justify-content-between align-items-center px-4">
-                        <div>
+                    var porcentaje = Math.Clamp(producto.Stock * 100 / Math.Max(minimo, 1), 0, 100);
+                    <li class="px-4 py-3 border-bottom">
+                        <div class="d-flex justify-content-between align-items-baseline gap-3 mb-2">
                             <a asp-controller="Products" asp-action="Details" asp-route-id="@producto.Id" class="fw-semibold">@producto.Name</a>
-                            <div class="small text-muted">@producto.Sku</div>
+                            @if (producto.Stock == 0)
+                            {
+                                <span class="badge text-bg-danger">Agotado</span>
+                            }
+                            else
+                            {
+                                <span class="num small">@producto.Stock disponibles</span>
+                            }
                         </div>
-                        <span class="badge rounded-pill @(producto.Stock == 0 ? "text-bg-danger" : "text-bg-warning")">@producto.Stock</span>
+                        <div class="stock-meter @(producto.Stock == 0 ? "is-empty" : null)" role="img" aria-label="@producto.Stock de @minimo unidades mínimas">
+                            <span style="width: @porcentaje%"></span>
+                        </div>
+                        <div class="small text-muted mt-1">@producto.Sku</div>
                     </li>
                 }
                 @if (Model.LowStockProducts.Count == 0)
                 {
-                    <li class="list-group-item text-center text-muted py-5">
-                        <i class="bi bi-check2-circle text-success me-1"></i> Todo el inventario está por encima del mínimo.
+                    <li class="px-4 py-5 text-center text-muted">
+                        <i class="bi bi-check2-circle d-block fs-3 mb-2" aria-hidden="true"></i>
+                        Ningún producto está por debajo del mínimo.
                     </li>
                 }
             </ul>
-        </div>
+        </section>
     </div>
 </div>

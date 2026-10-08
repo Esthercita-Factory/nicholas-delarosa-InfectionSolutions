@@ -1,0 +1,53 @@
+@* Paleta de comandos (Ctrl K): ir a cualquier seccion o buscar en un listado. La logica esta en site.js. *@
+<div class="palette" data-palette hidden>
+    <div class="palette-backdrop" data-palette-close></div>
+    <div class="palette-panel" role="dialog" aria-modal="true" aria-label="Buscar o ir a">
+        <div class="palette-search">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input type="text" placeholder="Busca un producto, cliente o venta, o escribe a dónde ir" autocomplete="off"
+                   role="combobox" aria-expanded="true" aria-controls="palette-list" aria-autocomplete="list" data-palette-input>
+            <kbd>Esc</kbd>
+        </div>
+        <ul class="palette-list" id="palette-list" role="listbox" data-palette-list>
+            <li class="palette-group" role="presentation" data-group="search">Buscar</li>
+            <li role="option" class="palette-item" data-group="search" data-search-url="@Url.Action("Index", "Products")">
+                <i class="bi bi-box-seam"></i><span>Buscar en productos <b data-term></b></span>
+            </li>
+            <li role="option" class="palette-item" data-group="search" data-search-url="@Url.Action("Index", "Customers")">
+                <i class="bi bi-people"></i><span>Buscar en clientes <b data-term></b></span>
+            </li>
+            <li role="option" class="palette-item" data-group="search" data-search-url="@Url.Action("Index", "Sales")">
+                <i class="bi bi-receipt"></i><span>Buscar en ventas <b data-term></b></span>
+            </li>
+
+            <li class="palette-group" role="presentation">Acciones</li>
+            <li role="option" class="palette-item" data-url="@Url.Action("Create", "Sales")" data-keywords="nueva venta registrar vender factura">
+                <i class="bi bi-cart-plus"></i><span>Registrar venta</span>
+            </li>
+            <li role="option" class="palette-item" data-url="@Url.Action("Create", "Products")" data-keywords="nuevo producto agregar material">
+                <i class="bi bi-plus-square"></i><span>Agregar producto</span>
+            </li>
+            <li role="option" class="palette-item" data-url="@Url.Action("Create", "Customers")" data-keywords="nuevo cliente registrar">
+                <i class="bi bi-person-plus"></i><span>Registrar cliente</span>
+            </li>
+            <li role="option" class="palette-item" data-url="@Url.Action("Index", "Imports")" data-keywords="importar excel carga masiva subir">
+                <i class="bi bi-file-earmark-arrow-up"></i><span>Importar desde Excel</span>
+            </li>
+
+            <li class="palette-group" role="presentation">Ir a</li>
+            <li role="option" class="palette-item" data-url="@Url.Action("Index", "Home")" data-keywords="inicio panel dashboard resumen mostrador">
+                <i class="bi bi-grid-1x2"></i><span>Inicio</span>
+            </li>
+            <li role="option" class="palette-item" data-url="@Url.Action("Index", "Sales")" data-keywords="ventas historial recibos">
+                <i class="bi bi-receipt"></i><span>Ventas</span>
+            </li>
+            <li role="option" class="palette-item" data-url="@Url.Action("Index", "Products")" data-keywords="productos catalogo inventario stock">
+                <i class="bi bi-box-seam"></i><span>Productos</span>
+            </li>
+            <li role="option" class="palette-item" data-url="@Url.Action("Index", "Customers")" data-keywords="clientes compradores">
+                <i class="bi bi-people"></i><span>Clientes</span>
+            </li>
+        </ul>
+        <p class="palette-hint"><kbd>↑</kbd><kbd>↓</kbd> para moverte, <kbd>Enter</kbd> para abrir</p>
+    </div>
+</div>

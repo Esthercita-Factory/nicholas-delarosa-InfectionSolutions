@@ -42,6 +42,7 @@ public sealed record SaleResponse(
     string CustomerDocument,
     string CustomerEmail,
     string CustomerPhone,
+    string? CustomerAddress,
     decimal Subtotal,
     decimal Tax,
     decimal Total,

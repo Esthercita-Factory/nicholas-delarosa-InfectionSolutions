@@ -18,7 +18,12 @@ public sealed record DashboardSummary
     public IReadOnlyList<RecentSale> RecentSales { get; init; } = [];
 
     public IReadOnlyList<LowStockProduct> LowStockProducts { get; init; } = [];
+
+    /// <summary>Ingresos por dia de las ultimas dos semanas (hora de Colombia), en orden.</summary>
+    public IReadOnlyList<DailySales> SalesByDay { get; init; } = [];
 }
+
+public sealed record DailySales(DateOnly Day, decimal Total, int Count);
 
 public sealed record RecentSale(Guid Id, string SaleNumber, DateTimeOffset SaleDate, string CustomerName, decimal Total, bool IsCancelled);
 

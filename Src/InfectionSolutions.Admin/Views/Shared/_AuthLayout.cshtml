@@ -3,39 +3,33 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] · InfectionSolutions Admin</title>
+    <partial name="_ThemeHead" />
+    <title>@ViewData["Title"] | InfectionSolutions</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..100,400..800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body class="auth-body">
-<main class="auth-wrapper">
-    <section class="auth-hero d-none d-lg-flex">
-        <div>
-            <span class="brand-mark brand-mark-lg"><i class="bi bi-bricks"></i></span>
-            <h1 class="display-6 fw-bold mt-4">InfectionSolutions</h1>
-            <p class="lead mb-4">Panel administrativo para la venta y distribución de materiales de construcción.</p>
-            <ul class="list-unstyled auth-features">
-                <li><i class="bi bi-box-seam"></i> Catálogo e inventario de productos</li>
-                <li><i class="bi bi-people"></i> Gestión de clientes</li>
-                <li><i class="bi bi-receipt"></i> Registro y seguimiento de ventas</li>
-            </ul>
-        </div>
-        <small class="opacity-75">&copy; @DateTime.Now.Year InfectionSolutions</small>
-    </section>
-    <section class="auth-panel">
-        <div class="auth-card">
-            <partial name="_Alerts" />
-            @RenderBody()
-        </div>
+<body class="gate">
+@{ ViewData["ThemeToggleClass"] = "gate-toggle"; }
+<partial name="_ThemeToggle" />
+<main class="gate-sheet">
+    <header class="gate-head">
+        <p class="gate-word"><span><span>Infection</span></span><span><span>Solutions</span></span></p>
+        <div class="ruler ruler-light" aria-hidden="true"></div>
+        <p class="gate-line">Bodega y mostrador de materiales de construcción</p>
+    </header>
+    <section class="gate-body">
+        <partial name="_Alerts" />
+        @RenderBody()
     </section>
 </main>
 
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/theme.js" asp-append-version="true"></script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

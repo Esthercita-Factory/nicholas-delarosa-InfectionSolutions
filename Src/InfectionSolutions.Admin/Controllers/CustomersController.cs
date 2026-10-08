@@ -3,6 +3,7 @@ using InfectionSolutions.Admin.ViewModels.Customers;
 using InfectionSolutions.Application.Common;
 using InfectionSolutions.Application.Dtos.Customers;
 using InfectionSolutions.Application.Services.Customers;
+using InfectionSolutions.Application.Services.Exports;
 using Microsoft.AspNetCore.Mvc;
 
 namespace InfectionSolutions.Admin.Controllers;
@@ -10,18 +11,20 @@ namespace InfectionSolutions.Admin.Controllers;
 public class CustomersController : Controller
 {
     private readonly ICustomerService _customerService;
+    private readonly IExportService _exportService;
 
-    public CustomersController(ICustomerService customerService)
+    public CustomersController(ICustomerService customerService, IExportService exportService)
     {
         _customerService = customerService;
+        _exportService = exportService;
     }
 
-    public async Task<IActionResult> Index(string? q, bool onlyActive = false, int page = 1, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Index(string? q, bool? active = null, int page = 1, CancellationToken cancellationToken = default)
     {
         var resultado = await _customerService.ListAsync(new CustomerQuery
         {
             Q = q,
-            OnlyActive = onlyActive,
+            Active = active,
             Page = page
         }, cancellationToken);
 
@@ -29,8 +32,15 @@ public class CustomersController : Controller
         {
             Result = resultado,
             Q = q,
-            OnlyActive = onlyActive
+            Active = active
         });
+    }
+
+    /// <summary>Exporta a Excel o PDF lo mismo que muestra el listado con sus filtros (todas las paginas).</summary>
+    public async Task<IActionResult> Export(string? q, bool? active = null, ExportFormat format = ExportFormat.Excel, CancellationToken cancellationToken = default)
+    {
+        var archivo = await _exportService.ExportCustomersAsync(new CustomerQuery { Q = q, Active = active }, format, cancellationToken);
+        return File(archivo.Content, archivo.ContentType, archivo.FileName);
     }
 
     public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)

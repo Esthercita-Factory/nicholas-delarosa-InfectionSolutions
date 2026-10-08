@@ -1,4 +1,4 @@
-# Borrador del entorno (Semana 1): base de datos + panel administrativo.
+# Entorno (Semanas 1-2): base de datos + panel administrativo.
 # En las siguientes semanas se agregan los servicios tests, api y client.
 #
 #   docker compose up --build
@@ -40,6 +40,12 @@ services:
       SeedAdmin__Password: ${ADMIN_PASSWORD:-Admin123*}
     ports:
       - "8080:8080"
+    volumes:
+      # Recibos PDF y logs de importacion sobreviven a recrear el contenedor.
+      - receipts:/app/wwwroot/recibos
+      - import-logs:/app/App_Data/import-logs
 
 volumes:
   db-data:
+  receipts:
+  import-logs:

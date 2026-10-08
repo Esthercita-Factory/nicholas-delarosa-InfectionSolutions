@@ -39,7 +39,8 @@ public sealed record ProductQuery
 
     public string? Category { get; init; }
 
-    public bool OnlyActive { get; init; }
+    /// <summary>null = todos, true = solo activos, false = solo inactivos.</summary>
+    public bool? Active { get; init; }
 
     public int Page { get; init; } = 1;
 

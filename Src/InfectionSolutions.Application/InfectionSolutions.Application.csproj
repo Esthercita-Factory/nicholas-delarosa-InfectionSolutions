@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\InfectionSolutions.Domain\InfectionSolutions.Domain.csproj" />
@@ -7,6 +7,8 @@
   <ItemGroup>
     <PackageReference Include="EPPlus" Version="8.7.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.12" />
     <PackageReference Include="QuestPDF" Version="2026.9.1" />
   </ItemGroup>
 
@@ -15,5 +17,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Archivo (SIL OFL 1.1): se incrusta para que los PDF se vean igual en Windows y en Docker. -->
+    <EmbeddedResource Include="Fonts\*.ttf" />
+    <None Include="Fonts\OFL.txt" />
+  </ItemGroup>
 
 </Project>

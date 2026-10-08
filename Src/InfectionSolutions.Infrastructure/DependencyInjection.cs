@@ -2,6 +2,7 @@ using InfectionSolutions.Application.Abstractions;
 using InfectionSolutions.Infrastructure.Identity;
 using InfectionSolutions.Infrastructure.Persistence;
 using InfectionSolutions.Infrastructure.Repositories;
+using InfectionSolutions.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -49,4 +50,8 @@ public static class InfrastructureServiceCollectionExtensions
 
         return services;
     }
+
+    /// <summary>Recibos PDF como archivos en una carpeta del host (el panel usa wwwroot/recibos).</summary>
+    public static IServiceCollection AddFileReceiptStorage(this IServiceCollection services, string directory)
+        => services.AddSingleton<IReceiptStorage>(new FileSystemReceiptStorage(directory));
 }

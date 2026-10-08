@@ -5,10 +5,10 @@
 
 <section class="page-header">
     <div>
-        <h1 class="h3 mb-1">@Model.FullName</h1>
-        <p class="text-muted mb-0">
-            Documento @Model.Document ·
-            <span class="badge rounded-pill @(Model.IsActive ? "text-bg-success" : "text-bg-secondary")">@(Model.IsActive ? "Activo" : "Inactivo")</span>
+        <h1>@Model.FullName</h1>
+        <p class="d-flex gap-3 align-items-center">
+            <span>Documento @Model.Document</span>
+            <span class="badge @(Model.IsActive ? "text-bg-success" : "text-bg-secondary")">@(Model.IsActive ? "Activo" : "Inactivo")</span>
         </p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
@@ -31,13 +31,13 @@
             <dt class="col-sm-3">Edad</dt>
             <dd class="col-sm-9">@Model.Age años</dd>
             <dt class="col-sm-3">Dirección</dt>
-            <dd class="col-sm-9">@(Model.Address ?? "—")</dd>
+            <dd class="col-sm-9">@(Model.Address ?? "Sin dirección")</dd>
             <dt class="col-sm-3">Acceso al portal</dt>
             <dd class="col-sm-9">@(Model.HasPortalAccess ? "Sí, tiene usuario con rol Cliente" : "No")</dd>
             <dt class="col-sm-3">Registrado</dt>
             <dd class="col-sm-9">@Model.CreatedAt.ToLocalTime().ToString("g")</dd>
             <dt class="col-sm-3">Última actualización</dt>
-            <dd class="col-sm-9">@(Model.UpdatedAt?.ToLocalTime().ToString("g") ?? "—")</dd>
+            <dd class="col-sm-9">@(Model.UpdatedAt?.ToLocalTime().ToString("g") ?? "Sin cambios desde que se registró")</dd>
         </dl>
     </div>
 </div>

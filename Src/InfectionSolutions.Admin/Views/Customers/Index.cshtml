@@ -5,10 +5,11 @@
 
 <section class="page-header">
     <div>
-        <h1 class="h3 mb-1">Clientes</h1>
+        <h1>Clientes</h1>
         <p class="text-muted mb-0">Personas y empresas que compran materiales.</p>
     </div>
-    <div>
+    <div class="d-flex gap-2">
+        <partial name="_ExportMenu" model="Model.Pager.RouteValues" />
         <a asp-action="Create" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i> Nuevo cliente</a>
     </div>
 </section>
@@ -16,18 +17,18 @@
 <section class="card">
     <div class="card-header py-3">
         <form asp-action="Index" method="get" class="row g-2 align-items-center" role="search">
-            <div class="col-12 col-md-6">
+            <div class="col-12 col-md-5">
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
                     <input type="search" name="q" value="@Model.Q" class="form-control" placeholder="Buscar por nombre o documento" aria-label="Buscar clientes">
                 </div>
             </div>
-            <div class="col-auto">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="onlyActive" name="onlyActive" value="true"
-                           checked="@Model.OnlyActive" onchange="this.form.submit()">
-                    <label class="form-check-label" for="onlyActive">Solo activos</label>
-                </div>
+            <div class="col-12 col-sm-6 col-md-auto">
+                <select name="active" class="form-select filter-status" aria-label="Filtrar por estado" onchange="this.form.submit()">
+                    <option value="">Todos los estados</option>
+                    <option value="true" selected="@(Model.Active == true)">Activos</option>
+                    <option value="false" selected="@(Model.Active == false)">Inactivos</option>
+                </select>
             </div>
             <div class="col-auto">
                 <button type="submit" class="btn btn-outline-primary">Buscar</button>
@@ -69,7 +70,7 @@
                     </td>
                     <td class="text-end">@customer.Age</td>
                     <td>
-                        <span class="badge rounded-pill @(customer.IsActive ? "text-bg-success" : "text-bg-secondary")">
+                        <span class="badge @(customer.IsActive ? "text-bg-success" : "text-bg-secondary")">
                             @(customer.IsActive ? "Activo" : "Inactivo")
                         </span>
                     </td>

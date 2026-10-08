@@ -1,0 +1,24 @@
+@model IDictionary<string, string?>
+@* Recibe los filtros actuales del listado (los mismos del paginador) y exporta todas las paginas. *@
+@{
+    IDictionary<string, string?> Con(string formato) => new Dictionary<string, string?>(Model) { ["format"] = formato };
+}
+
+<div class="dropdown">
+    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-download me-1"></i> Exportar
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+        <li><h6 class="dropdown-header">Con los filtros actuales</h6></li>
+        <li>
+            <a class="dropdown-item" asp-action="Export" asp-all-route-data="Con(nameof(InfectionSolutions.Application.Services.Exports.ExportFormat.Excel))">
+                <i class="bi bi-file-earmark-excel text-success me-2"></i>Excel (.xlsx)
+            </a>
+        </li>
+        <li>
+            <a class="dropdown-item" asp-action="Export" asp-all-route-data="Con(nameof(InfectionSolutions.Application.Services.Exports.ExportFormat.Pdf))">
+                <i class="bi bi-file-earmark-pdf text-danger me-2"></i>PDF
+            </a>
+        </li>
+    </ul>
+</div>

@@ -12,11 +12,12 @@ public class ProductIndexViewModel
 
     public string? Category { get; init; }
 
-    public bool OnlyActive { get; init; }
+    /// <summary>null = todos, true = solo activos, false = solo inactivos.</summary>
+    public bool? Active { get; init; }
 
     public IReadOnlyList<string> Categories { get; init; } = [];
 
-    public bool HasFilters => !string.IsNullOrWhiteSpace(Q) || !string.IsNullOrWhiteSpace(Category) || OnlyActive;
+    public bool HasFilters => !string.IsNullOrWhiteSpace(Q) || !string.IsNullOrWhiteSpace(Category) || Active.HasValue;
 
     public PagerViewModel Pager => new()
     {
@@ -28,7 +29,7 @@ public class ProductIndexViewModel
         {
             ["q"] = Q,
             ["category"] = Category,
-            ["onlyActive"] = OnlyActive ? "true" : null
+            ["active"] = Active?.ToString().ToLowerInvariant()
         }
     };
 }

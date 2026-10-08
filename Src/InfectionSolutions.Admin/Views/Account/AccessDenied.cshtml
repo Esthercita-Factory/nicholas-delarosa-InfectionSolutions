@@ -1,14 +1,12 @@
 @{
-    ViewData["Title"] = "Acceso denegado";
+    ViewData["Title"] = "Acceso restringido";
     Layout = "_AuthLayout";
 }
 
-<div class="text-center">
-    <div class="display-5 text-warning mb-3"><i class="bi bi-shield-lock"></i></div>
-    <h2 class="h4 fw-bold">Acceso restringido</h2>
-    <p class="text-muted">
-        El panel administrativo es exclusivo para usuarios con rol <strong>Administrador</strong>.
-        Si eres cliente, ingresa desde el portal de clientes.
+<div>
+    <h1>Este panel es solo para administradores</h1>
+    <p class="text-muted mb-4">
+        Tu cuenta no tiene el rol Administrador, así que cerramos la sesión. Si eres cliente, compra desde el portal de clientes.
     </p>
-    <a asp-action="Login" class="btn btn-primary">Iniciar sesión como administrador</a>
+    <a asp-action="Login" class="btn btn-primary">Iniciar sesión con otra cuenta</a>
 </div>

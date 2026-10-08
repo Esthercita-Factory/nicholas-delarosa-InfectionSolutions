@@ -1,0 +1,13 @@
+@* Aplica el tema antes de pintar: la preferencia guardada o, si no hay, la del sistema. Evita el destello claro. *@
+<meta name="color-scheme" content="light dark" />
+<script>
+    (function () {
+        var tema = null;
+        try { tema = localStorage.getItem('is-tema'); } catch (e) { }
+        if (tema !== 'dark' && tema !== 'light') {
+            tema = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', tema);
+        document.documentElement.setAttribute('data-bs-theme', tema);
+    })();
+</script>

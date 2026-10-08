@@ -25,10 +25,17 @@ public sealed class ProductService : IProductService
     public async Task<PagedResponse<ProductResponse>> ListAsync(ProductQuery query, CancellationToken cancellationToken = default)
     {
         var page = new PageRequest { Page = query.Page, PageSize = query.PageSize };
-        var filtro = new ProductFilter(LimpiarOpcional(query.Q), LimpiarOpcional(query.Category), query.OnlyActive);
+        var filtro = new ProductFilter(LimpiarOpcional(query.Q), LimpiarOpcional(query.Category), query.Active);
         var result = await _products.ListAsync(filtro, page, cancellationToken);
 
         return PagedResponse<ProductResponse>.From(result, page, ToResponse);
+    }
+
+    public async Task<IReadOnlyList<ProductResponse>> ListAllAsync(ProductQuery query, CancellationToken cancellationToken = default)
+    {
+        var filtro = new ProductFilter(LimpiarOpcional(query.Q), LimpiarOpcional(query.Category), query.Active);
+        var products = await _products.ListAllAsync(filtro, cancellationToken);
+        return products.Select(ToResponse).ToList();
     }
 
     public async Task<Result<ProductResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -59,7 +66,7 @@ public sealed class ProductService : IProductService
             return Result.Failure<ProductResponse>(error);
         }
 
-        var sku = NormalizarSku(request.Sku);
+        var sku = FieldRules.NormalizeSku(request.Sku);
         if (await _products.SkuExistsAsync(sku, null, cancellationToken))
         {
             return Result.Failure<ProductResponse>(SkuDuplicado());
@@ -72,6 +79,7 @@ public sealed class ProductService : IProductService
         };
 
         AplicarCambios(request, product);
+        product.Category = await CategoriaRegistradaAsync(product.Category, cancellationToken);
         await _products.AddAsync(product, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -92,13 +100,14 @@ public sealed class ProductService : IProductService
             return Result.Failure<ProductResponse>(error);
         }
 
-        var sku = NormalizarSku(request.Sku);
+        var sku = FieldRules.NormalizeSku(request.Sku);
         if (await _products.SkuExistsAsync(sku, id, cancellationToken))
         {
             return Result.Failure<ProductResponse>(SkuDuplicado());
         }
 
         AplicarCambios(request, product);
+        product.Category = await CategoriaRegistradaAsync(product.Category, cancellationToken);
         product.Sku = sku;
         product.UpdatedAt = _clock.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -127,6 +136,13 @@ public sealed class ProductService : IProductService
     }
 
     /// <summary>
+    /// Si la categoria ya existe escrita de otra forma ("cementos", "Céméntos"),
+    /// se usa la registrada: el filtro por categoria no se parte en duplicados.
+    /// </summary>
+    private async Task<string> CategoriaRegistradaAsync(string categoria, CancellationToken cancellationToken)
+        => await _products.FindCategoryAsync(categoria, cancellationToken) ?? categoria;
+
+    /// <summary>
     /// Reglas minimas que deben cumplirse sin importar quien llame (panel o
     /// API); los formularios validan lo mismo antes con Data Annotations.
     /// </summary>
@@ -135,6 +151,11 @@ public sealed class ProductService : IProductService
         if (string.IsNullOrWhiteSpace(request.Sku))
         {
             return Error.Validation("El código es obligatorio.", nameof(request.Sku));
+        }
+
+        if (!FieldRules.IsValidSku(FieldRules.NormalizeSku(request.Sku)))
+        {
+            return Error.Validation("El código solo admite letras, números, guiones y puntos.", nameof(request.Sku));
         }
 
         if (string.IsNullOrWhiteSpace(request.Name))
@@ -183,9 +204,6 @@ public sealed class ProductService : IProductService
         product.IsActive,
         product.CreatedAt,
         product.UpdatedAt);
-
-    /// <summary>sku es unique: se guarda en mayusculas para no duplicar por mayusculas/minusculas.</summary>
-    private static string NormalizarSku(string sku) => sku.Trim().ToUpperInvariant();
 
     private static Error SkuDuplicado() => Error.Conflict("Ya existe un producto con ese código.", nameof(ProductRequest.Sku));
 

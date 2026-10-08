@@ -1,7 +1,9 @@
 using InfectionSolutions.Application.Common;
 using InfectionSolutions.Application.Dtos.Sales;
+using InfectionSolutions.Application.Services.Receipts;
 using InfectionSolutions.Application.Services.Sales;
 using InfectionSolutions.Domain.Enums;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace InfectionSolutions.Tests.Application;
 
@@ -12,6 +14,7 @@ public class SaleServiceTests
     private readonly ICustomerRepository _customers = Substitute.For<ICustomerRepository>();
     private readonly FakeUnitOfWork _unitOfWork = new();
     private readonly FixedClock _clock = new(new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero));
+    private readonly IReceiptService _receipts = Substitute.For<IReceiptService>();
     private readonly SaleService _service;
 
     private readonly Customer _cliente = new() { Id = Guid.NewGuid(), FullName = "Laura Mendoza", Document = "1020", Email = "laura@correo.com", Phone = "3000000000", IsActive = true };
@@ -20,7 +23,7 @@ public class SaleServiceTests
 
     public SaleServiceTests()
     {
-        _service = new SaleService(_sales, _products, _customers, _unitOfWork, _clock);
+        _service = new SaleService(_sales, _products, _customers, _unitOfWork, _clock, _receipts, NullLogger<SaleService>.Instance);
 
         _customers.FindByIdAsync(_cliente.Id, Arg.Any<CancellationToken>()).Returns(_cliente);
         _products.FindByIdsForUpdateAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())
@@ -48,6 +51,23 @@ public class SaleServiceTests
         Assert.Equal(SaleStatus.Completed, venta.Status);
         Assert.Equal(7, _cemento.Stock);
         Assert.Equal(0, _varilla.Stock);
+        Assert.True(_unitOfWork.Committed);
+        await _receipts.Received(1).SaveAsync(Arg.Is<SaleResponse>(r => r.SaleNumber == "V-20261007-0005"), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CreateAsync_SiFallaElRecibo_LaVentaIgualQuedaRegistrada()
+    {
+        _receipts.SaveAsync(Arg.Any<SaleResponse>(), Arg.Any<CancellationToken>())
+            .Returns<Task<string>>(_ => throw new IOException("disco lleno"));
+
+        var resultado = await _service.CreateAsync(new SaleRequest
+        {
+            CustomerId = _cliente.Id,
+            Lines = [new SaleLineRequest(_cemento.Id, 1)]
+        }, null);
+
+        Assert.True(resultado.IsSuccess);
         Assert.True(_unitOfWork.Committed);
     }
 
@@ -110,6 +130,7 @@ public class SaleServiceTests
         {
             Id = Guid.NewGuid(),
             Status = SaleStatus.Completed,
+            Customer = _cliente,
             Details = [new SaleDetail { Product = _cemento, ProductId = _cemento.Id, Quantity = 4 }]
         };
         _sales.FindByIdAsync(venta.Id, Arg.Any<CancellationToken>()).Returns(venta);
@@ -120,5 +141,6 @@ public class SaleServiceTests
         Assert.Equal(SaleStatus.Cancelled, venta.Status);
         Assert.Equal(14, _cemento.Stock);
         Assert.Equal(_clock.UtcNow, venta.CancelledAt);
+        await _receipts.Received(1).SaveAsync(Arg.Is<SaleResponse>(r => r.Status == SaleStatus.Cancelled), Arg.Any<CancellationToken>());
     }
 }

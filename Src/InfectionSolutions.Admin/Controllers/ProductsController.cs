@@ -2,6 +2,7 @@ using InfectionSolutions.Admin.Common;
 using InfectionSolutions.Admin.ViewModels.Products;
 using InfectionSolutions.Application.Common;
 using InfectionSolutions.Application.Dtos.Products;
+using InfectionSolutions.Application.Services.Exports;
 using InfectionSolutions.Application.Services.Products;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,19 +11,21 @@ namespace InfectionSolutions.Admin.Controllers;
 public class ProductsController : Controller
 {
     private readonly IProductService _productService;
+    private readonly IExportService _exportService;
 
-    public ProductsController(IProductService productService)
+    public ProductsController(IProductService productService, IExportService exportService)
     {
         _productService = productService;
+        _exportService = exportService;
     }
 
-    public async Task<IActionResult> Index(string? q, string? category, bool onlyActive = false, int page = 1, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Index(string? q, string? category, bool? active = null, int page = 1, CancellationToken cancellationToken = default)
     {
         var resultado = await _productService.ListAsync(new ProductQuery
         {
             Q = q,
             Category = category,
-            OnlyActive = onlyActive,
+            Active = active,
             Page = page
         }, cancellationToken);
 
@@ -31,9 +34,16 @@ public class ProductsController : Controller
             Result = resultado,
             Q = q,
             Category = category,
-            OnlyActive = onlyActive,
+            Active = active,
             Categories = await _productService.GetCategoriesAsync(cancellationToken)
         });
+    }
+
+    /// <summary>Exporta a Excel o PDF lo mismo que muestra el listado con sus filtros (todas las paginas).</summary>
+    public async Task<IActionResult> Export(string? q, string? category, bool? active = null, ExportFormat format = ExportFormat.Excel, CancellationToken cancellationToken = default)
+    {
+        var archivo = await _exportService.ExportProductsAsync(new ProductQuery { Q = q, Category = category, Active = active }, format, cancellationToken);
+        return File(archivo.Content, archivo.ContentType, archivo.FileName);
     }
 
     public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)

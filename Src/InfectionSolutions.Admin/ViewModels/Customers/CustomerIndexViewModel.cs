@@ -10,9 +10,10 @@ public class CustomerIndexViewModel
 
     public string? Q { get; init; }
 
-    public bool OnlyActive { get; init; }
+    /// <summary>null = todos, true = solo activos, false = solo inactivos.</summary>
+    public bool? Active { get; init; }
 
-    public bool HasFilters => !string.IsNullOrWhiteSpace(Q) || OnlyActive;
+    public bool HasFilters => !string.IsNullOrWhiteSpace(Q) || Active.HasValue;
 
     public PagerViewModel Pager => new()
     {
@@ -23,7 +24,7 @@ public class CustomerIndexViewModel
         RouteValues = new Dictionary<string, string?>
         {
             ["q"] = Q,
-            ["onlyActive"] = OnlyActive ? "true" : null
+            ["active"] = Active?.ToString().ToLowerInvariant()
         }
     };
 }

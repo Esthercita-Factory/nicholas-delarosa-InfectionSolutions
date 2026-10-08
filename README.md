@@ -1,15 +1,16 @@
 # InfectionSolutions
 
-Sistema para la **venta y distribución de materiales de construcción**. Esta entrega (Semana 1) incluye
-el **panel administrativo** en ASP.NET Core MVC (vistas Razor) con PostgreSQL, Identity con roles y la
-gestión de productos, clientes y ventas.
+Sistema para la **venta y distribución de materiales de construcción**. Incluye el **panel
+administrativo** en ASP.NET Core MVC (vistas Razor) con PostgreSQL, Identity con roles y la gestión de
+productos, clientes y ventas (Semana 1), además de la carga masiva desde Excel, las exportaciones a
+Excel/PDF y los recibos PDF de cada venta (Semana 2).
 
 | | |
 |---|---|
 | Stack | .NET 10 · ASP.NET Core MVC · EF Core 10 + Npgsql · ASP.NET Core Identity · Bootstrap 5 |
 | Base de datos | PostgreSQL, creada **solo con migraciones** de EF Core |
 | Pruebas | xUnit + NSubstitute |
-| Paquetes listos para la Semana 2 | EPPlus (Excel) y QuestPDF (PDF): instalados en `Application`, aún sin uso |
+| Documentos | EPPlus (lectura y escritura de Excel) y QuestPDF (recibos y reportes PDF) |
 
 ## Funcionalidades
 
@@ -29,6 +30,37 @@ gestión de productos, clientes y ventas.
 - **Manejo de errores**: resultados `Result<T>` en los servicios, mensajes junto al campo del formulario,
   un filtro para las excepciones de dominio y una página de error amigable.
 
+### Semana 2: Excel y PDF
+
+- **Carga masiva desde Excel** (*Importar Excel* en el menú): acepta archivos `.xlsx` **desnormalizados**,
+  es decir, con productos, clientes y ventas mezclados en las mismas filas y en varias hojas.
+  - Busca la fila de encabezados de cada hoja (puede haber título y fecha antes) y reconoce las columnas
+    por sinónimos: *Código/Ref/SKU*, *Cédula/NIT/Documento*, *Valor/Precio*, *Cant/Cantidad*… "Nombre" a
+    secas se asigna al producto o al cliente según las demás columnas.
+  - **Normaliza en memoria**: cada fila se separa en producto (por código), cliente (por documento) y
+    línea de venta (si trae cantidad). Las filas que repiten el mismo producto o cliente se fusionan, y si
+    un dato cambia entre filas se avisa.
+  - **Valida** formatos (números como `$32.500` o `1.250,50`, fechas `dd/mm/aaaa`, correo, teléfono, edad)
+    y los datos obligatorios para crear: producto (código, nombre, precio) y cliente (documento, nombre,
+    correo, teléfono, edad).
+  - **Inserta o actualiza**: si el producto o el cliente existe, cambia solo los datos que trae el
+    archivo. Las líneas con la misma factura forman una venta; sin número, se agrupan por cliente y día.
+    Una venta con alguna línea inválida no se registra a medias, y las facturas ya registradas se omiten.
+    Las ventas importadas son **históricas**: guardan su fecha y precio, y no descuentan stock.
+  - Todo se guarda en **una transacción**. Las filas con error se omiten y quedan en un **log** (nivel,
+    hoja, fila, campo y detalle), que se ve en pantalla con filtros y se descarga como CSV.
+  - Desde la misma pantalla se puede descargar una **plantilla de ejemplo** con datos mezclados.
+- **Exportaciones**: Productos, Clientes y Ventas tienen un botón *Exportar* a **Excel** (tabla con
+  filtros, formatos de moneda y fecha) o **PDF** (reporte paginado), con los filtros aplicados en el
+  listado. Un Excel exportado se puede volver a importar.
+- **Recibo PDF de cada venta**: al registrar una venta se genera el recibo con los datos de la empresa y
+  del cliente, la fecha y el número de venta, los productos, el subtotal, el IVA y el total. Se guarda en
+  `wwwroot/recibos/<número>.pdf` y se ve o se descarga desde el detalle y el listado de ventas. Al anular
+  la venta, el recibo se regenera con la marca **ANULADA**. Para las ventas importadas, el recibo se genera
+  la primera vez que se pide.
+- Los datos de la empresa que aparecen en los documentos se configuran en la sección `Company` de
+  `appsettings.json`.
+
 ## Arquitectura
 
 Arquitectura limpia en capas, basada en la estructura de
@@ -39,12 +71,12 @@ ViewModels y vistas del panel al estilo de [RRHH](https://github.com/jcomte23/RR
 InfectionSolutions.slnx
 ├── Src/
 │   ├── InfectionSolutions.Domain/          Entidades, enums, roles y reglas puras (IVA, consecutivo)
-│   ├── InfectionSolutions.Application/     Casos de uso (Services), DTOs, interfaces de repositorio, Result<T>
-│   ├── InfectionSolutions.Infrastructure/  EF Core (DbContext, configuraciones, migraciones), repositorios, Identity
+│   ├── InfectionSolutions.Application/     Casos de uso, DTOs, interfaces, Result<T>, importación/exportación/recibos
+│   ├── InfectionSolutions.Infrastructure/  EF Core (DbContext, configuraciones, migraciones), repositorios, Identity, recibos en disco
 │   ├── InfectionSolutions.Admin/           Panel MVC: Controllers, ViewModels, Views, wwwroot
 │   └── InfectionSolutions.Tests/           Pruebas xUnit de Domain y Application
 ├── docs/diagrams.md                        Modelo entidad-relación, diagrama de clases y flujo de venta
-├── docker-compose.yml                      PostgreSQL + Admin (borrador)
+├── docker-compose.yml                      PostgreSQL + Admin
 └── dotnet-tools.json                       dotnet-ef como herramienta local
 ```
 
@@ -109,19 +141,25 @@ dotnet ef migrations add NombreDelCambio --project Src/InfectionSolutions.Infras
 dotnet test InfectionSolutions.slnx
 ```
 
-Las pruebas cubren el cálculo de IVA y totales, el consecutivo de venta, la conversión de la edad con
-`try-catch`, las reglas de `ProductService` y el flujo completo de `SaleService` (stock insuficiente,
-líneas repetidas y anulación).
+Las pruebas cubren:
 
-## Ejecución con Docker (borrador)
+- El cálculo de IVA y totales, el consecutivo de venta y la conversión de la edad con `try-catch`.
+- Las reglas de `ProductService` y el flujo de `SaleService`: stock insuficiente, líneas repetidas,
+  anulación y generación del recibo.
+- La carga masiva: formatos de números y fechas, sinónimos de columnas, fusión de filas, validaciones e
+  importación completa de un `.xlsx` en memoria.
+- Los recibos PDF y las exportaciones, incluido exportar un Excel y volver a importarlo.
+
+## Ejecución con Docker
 
 ```bash
 docker compose up --build
 ```
 
 Levanta PostgreSQL (expuesto en el puerto **5433** del host) y el panel en http://localhost:8080. Las
-credenciales se pueden cambiar copiando `.env.example` como `.env`. En las próximas semanas se
-agregarán los servicios `tests`, `api` y `client`.
+credenciales se pueden cambiar copiando `.env.example` como `.env`. Los recibos PDF y los logs de
+importación se guardan en volúmenes (`receipts` e `import-logs`), así que no se pierden al recrear el
+contenedor. En las próximas semanas se agregarán los servicios `tests`, `api` y `client`.
 
 ## Convenciones
 

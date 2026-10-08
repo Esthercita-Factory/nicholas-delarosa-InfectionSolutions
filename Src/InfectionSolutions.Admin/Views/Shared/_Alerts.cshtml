@@ -1,17 +1,21 @@
-@if (TempData[TempDataKeys.Mensaje] is string mensaje)
-{
-    <div class="alert alert-success alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
-        <i class="bi bi-check-circle-fill"></i>
-        <div>@mensaje</div>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-    </div>
-}
+@* Avisos despues de un redirect: se muestran como toasts. Los de exito se cierran solos. *@
+<div class="toast-stack" aria-live="polite" aria-atomic="false">
+    @if (TempData[TempDataKeys.Mensaje] is string mensaje)
+    {
+        <div class="toast-card is-success" role="status" data-toast data-toast-timeout="5500">
+            <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+            <p>@mensaje</p>
+            <button type="button" class="toast-close" data-toast-close aria-label="Cerrar aviso"><i class="bi bi-x-lg"></i></button>
+            <span class="toast-progress" aria-hidden="true"></span>
+        </div>
+    }
 
-@if (TempData[TempDataKeys.Error] is string error)
-{
-    <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
-        <i class="bi bi-exclamation-triangle-fill"></i>
-        <div>@error</div>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
-    </div>
-}
+    @if (TempData[TempDataKeys.Error] is string error)
+    {
+        <div class="toast-card is-error" role="alert" data-toast>
+            <i class="bi bi-exclamation-octagon-fill" aria-hidden="true"></i>
+            <p>@error</p>
+            <button type="button" class="toast-close" data-toast-close aria-label="Cerrar aviso"><i class="bi bi-x-lg"></i></button>
+        </div>
+    }
+</div>
