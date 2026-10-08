@@ -1,0 +1,35 @@
+@model CustomerFormViewModel
+@{
+    ViewData["Title"] = "Editar cliente";
+}
+
+<section class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Editar cliente</h1>
+        <p class="text-muted mb-0">@Model.Document · @Model.FullName</p>
+    </div>
+</section>
+
+<div class="row">
+    <div class="col-12 col-lg-9 col-xl-8">
+        <div class="card">
+            <div class="card-body p-4">
+                <form asp-action="Edit" asp-route-id="@Model.Id" method="post">
+                    <input type="hidden" asp-for="Id" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger small py-2" role="alert"></div>
+
+                    <partial name="_Form" model="Model" />
+
+                    <div class="d-flex gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

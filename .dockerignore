@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.idea/
+**/node_modules/
+**/*.user
+.git/
+Historias_de_usuario_M6/
+Repos/
+docs/
+*.md

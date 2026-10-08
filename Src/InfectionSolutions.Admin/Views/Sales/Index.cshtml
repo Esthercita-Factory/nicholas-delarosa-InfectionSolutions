@@ -1,0 +1,101 @@
+@model SaleIndexViewModel
+@{
+    ViewData["Title"] = "Ventas";
+}
+
+<section class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Ventas</h1>
+        <p class="text-muted mb-0">Historial de ventas registradas y su estado.</p>
+    </div>
+    <div>
+        <a asp-action="Create" class="btn btn-primary"><i class="bi bi-cart-plus me-1"></i> Nueva venta</a>
+    </div>
+</section>
+
+<section class="card">
+    <div class="card-header py-3">
+        <form asp-action="Index" method="get" class="row g-2 align-items-center" role="search">
+            <div class="col-12 col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="search" name="q" value="@Model.Q" class="form-control" placeholder="Número de venta, cliente o documento" aria-label="Buscar ventas">
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <select name="status" class="form-select" aria-label="Filtrar por estado" onchange="this.form.submit()">
+                    <option value="">Todos los estados</option>
+                    @foreach (var estado in Enum.GetValues<SaleStatus>())
+                    {
+                        <option value="@estado" selected="@(estado == Model.Status)">@estado.ToDisplay()</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-primary">Buscar</button>
+                @if (Model.HasFilters)
+                {
+                    <a asp-action="Index" class="btn btn-link">Quitar filtros</a>
+                }
+            </div>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+            <tr>
+                <th scope="col" class="ps-4">Venta</th>
+                <th scope="col">Cliente</th>
+                <th scope="col" class="text-end">Productos</th>
+                <th scope="col" class="text-end">Total</th>
+                <th scope="col">Estado</th>
+                <th scope="col" class="text-end pe-4">Acciones</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var sale in Model.Result.Items)
+            {
+                <tr class="@(sale.Status == SaleStatus.Cancelled ? "text-body-secondary" : null)">
+                    <td class="ps-4">
+                        <div class="fw-semibold">@sale.SaleNumber</div>
+                        <small class="text-muted">@sale.SaleDate.ToLocalTime().ToString("g")</small>
+                    </td>
+                    <td>
+                        <div>@sale.CustomerName</div>
+                        <small class="text-muted">@sale.CustomerDocument</small>
+                    </td>
+                    <td class="text-end">@sale.ItemCount</td>
+                    <td class="text-end fw-semibold">@sale.Total.ToString("C2")</td>
+                    <td><span class="badge rounded-pill @sale.Status.ToBadgeClass()">@sale.Status.ToDisplay()</span></td>
+                    <td class="text-end pe-4">
+                        <a asp-action="Details" asp-route-id="@sale.Id" class="btn btn-sm btn-outline-secondary" title="Ver detalle"><i class="bi bi-eye"></i></a>
+                    </td>
+                </tr>
+            }
+
+            @if (Model.Result.Items.Count == 0)
+            {
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-5">
+                        @if (Model.HasFilters)
+                        {
+                            @("No hay ventas con esos filtros. ")
+                            <a asp-action="Index">Ver todas</a>
+                            @(".")
+                        }
+                        else
+                        {
+                            @("Aún no hay ventas registradas. ")
+                            <a asp-action="Create">Registra la primera</a>
+                            @(".")
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <partial name="_Pager" model="Model.Pager" />
+</section>

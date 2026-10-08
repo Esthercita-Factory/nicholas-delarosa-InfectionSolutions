@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+@{
+    var controladorActual = ViewContext.RouteData.Values["controller"]?.ToString();
+    string Activo(string controlador) => controladorActual == controlador ? "active" : string.Empty;
+    var correo = User.Identity?.Name ?? string.Empty;
+    var inicial = string.IsNullOrEmpty(correo) ? "A" : correo[..1].ToUpperInvariant();
+}
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · InfectionSolutions Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+<div class="admin-shell">
+    <aside class="sidebar offcanvas-lg offcanvas-start" tabindex="-1" id="sidebar" aria-labelledby="sidebarLabel">
+        <div class="sidebar-brand">
+            <span class="brand-mark"><i class="bi bi-bricks"></i></span>
+            <div>
+                <div class="brand-name" id="sidebarLabel">InfectionSolutions</div>
+                <div class="brand-sub">Materiales de construcción</div>
+            </div>
+            <button type="button" class="btn-close btn-close-white ms-auto d-lg-none" data-bs-dismiss="offcanvas" data-bs-target="#sidebar" aria-label="Cerrar"></button>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Navegación principal">
+            <span class="sidebar-section">General</span>
+            <a class="sidebar-link @Activo("Home")" asp-controller="Home" asp-action="Index">
+                <i class="bi bi-speedometer2"></i> Inicio
+            </a>
+
+            <span class="sidebar-section">Gestión</span>
+            <a class="sidebar-link @Activo("Products")" asp-controller="Products" asp-action="Index">
+                <i class="bi bi-box-seam"></i> Productos
+            </a>
+            <a class="sidebar-link @Activo("Customers")" asp-controller="Customers" asp-action="Index">
+                <i class="bi bi-people"></i> Clientes
+            </a>
+            <a class="sidebar-link @Activo("Sales")" asp-controller="Sales" asp-action="Index">
+                <i class="bi bi-receipt"></i> Ventas
+            </a>
+
+            <span class="sidebar-section">Administración</span>
+            <a class="sidebar-link @Activo("Account")" asp-controller="Account" asp-action="Register">
+                <i class="bi bi-person-gear"></i> Nuevo administrador
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span class="avatar">@inicial</span>
+            <div class="text-truncate">
+                <div class="small fw-semibold text-white text-truncate">@correo</div>
+                <div class="small sidebar-muted">Administrador</div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="admin-main">
+        <header class="topbar">
+            <button class="btn btn-icon d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Abrir menú">
+                <i class="bi bi-list fs-4"></i>
+            </button>
+            <div class="topbar-title">
+                <span class="text-muted small d-none d-sm-inline">Panel administrativo /</span>
+                <span class="fw-semibold">@ViewData["Title"]</span>
+            </div>
+            <div class="dropdown ms-auto">
+                <button class="btn btn-user dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="avatar avatar-sm">@inicial</span>
+                    <span class="d-none d-md-inline">@correo</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <li><h6 class="dropdown-header">Sesión de administrador</h6></li>
+                    <li><a class="dropdown-item" asp-controller="Account" asp-action="Register"><i class="bi bi-person-plus me-2"></i>Nuevo administrador</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form asp-controller="Account" asp-action="Logout" method="post">
+                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-box-arrow-right me-2"></i>Cerrar sesión</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </header>
+
+        <main class="content" role="main">
+            <partial name="_Alerts" />
+            @RenderBody()
+        </main>
+
+        <footer class="footer">
+            <span>&copy; @DateTime.Now.Year InfectionSolutions · Venta y distribución de materiales de construcción</span>
+            <span class="text-muted">Panel administrativo v1.0</span>
+        </footer>
+    </div>
+</div>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+<script src="~/js/site.js" asp-append-version="true"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

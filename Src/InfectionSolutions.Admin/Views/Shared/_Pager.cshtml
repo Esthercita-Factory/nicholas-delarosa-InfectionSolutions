@@ -1,0 +1,34 @@
+@model PagerViewModel
+
+<div class="card-footer bg-transparent d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2 py-3">
+    <small class="text-muted">
+        @Model.TotalCount @Model.ItemName
+        @if (Model.TotalPages > 1)
+        {
+            @($" · página {Model.Page} de {Model.TotalPages}")
+        }
+    </small>
+
+    @if (Model.TotalPages > 1)
+    {
+        var desde = Math.Max(1, Model.Page - 2);
+        var hasta = Math.Min(Model.TotalPages, Model.Page + 2);
+
+        <nav aria-label="Paginación">
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item @(Model.Page <= 1 ? "disabled" : null)">
+                    <a class="page-link" asp-all-route-data="Model.RouteFor(Model.Page - 1)" aria-label="Anterior">&laquo;</a>
+                </li>
+                @for (var pagina = desde; pagina <= hasta; pagina++)
+                {
+                    <li class="page-item @(pagina == Model.Page ? "active" : null)">
+                        <a class="page-link" asp-all-route-data="Model.RouteFor(pagina)">@pagina</a>
+                    </li>
+                }
+                <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : null)">
+                    <a class="page-link" asp-all-route-data="Model.RouteFor(Model.Page + 1)" aria-label="Siguiente">&raquo;</a>
+                </li>
+            </ul>
+        </nav>
+    }
+</div>

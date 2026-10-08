@@ -1,0 +1,139 @@
+@model SaleFormViewModel
+@{
+    ViewData["Title"] = "Nueva venta";
+    var tasaIva = InfectionSolutions.Domain.Services.InventoryCalculator.TaxRate;
+}
+
+@functions {
+    // Opciones del select de productos con precio, stock y unidad para el calculo en vivo.
+    private Microsoft.AspNetCore.Html.IHtmlContent OpcionesDeProducto(Guid? seleccionado)
+    {
+        var html = new Microsoft.AspNetCore.Html.HtmlContentBuilder();
+        html.AppendHtml("<option value=\"\">Selecciona un producto...</option>");
+        foreach (var p in Model.Products)
+        {
+            var precio = p.Price.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var marcado = p.Id == seleccionado ? " selected" : string.Empty;
+            var sinStock = p.Stock == 0 ? " disabled" : string.Empty;
+            html.AppendHtml($"<option value=\"{p.Id}\" data-price=\"{precio}\" data-stock=\"{p.Stock}\" data-unit=\"{System.Net.WebUtility.HtmlEncode(p.Unit)}\"{marcado}{sinStock}>");
+            html.Append($"{p.Name} ({p.Sku}) · stock {p.Stock}");
+            html.AppendHtml("</option>");
+        }
+        return html;
+    }
+}
+
+<section class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Nueva venta</h1>
+        <p class="text-muted mb-0">Selecciona el cliente y agrega los productos. El stock se descuenta al guardar.</p>
+    </div>
+</section>
+
+<form asp-action="Create" method="post" id="sale-form" data-tax-rate="@tasaIva.ToString(System.Globalization.CultureInfo.InvariantCulture)">
+    <div asp-validation-summary="All" class="alert alert-danger small py-2" role="alert"></div>
+
+    <div class="row g-3">
+        <div class="col-12 col-xl-8">
+            <div class="card mb-3">
+                <div class="card-body p-4">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-7">
+                            <label asp-for="CustomerId" class="form-label"></label>
+                            <select asp-for="CustomerId" class="form-select">
+                                <option value="">Selecciona un cliente...</option>
+                                @foreach (var c in Model.Customers)
+                                {
+                                    <option value="@c.Id" selected="@(c.Id == Model.CustomerId)">@c.FullName · @c.Document</option>
+                                }
+                            </select>
+                            <span asp-validation-for="CustomerId" class="text-danger small"></span>
+                            @if (Model.Customers.Count == 0)
+                            {
+                                <div class="form-text">No hay clientes activos. <a asp-controller="Customers" asp-action="Create">Crea uno</a>.</div>
+                            }
+                        </div>
+                        <div class="col-12 col-md-5">
+                            <label asp-for="Notes" class="form-label"></label>
+                            <input asp-for="Notes" class="form-control" placeholder="Entrega en obra, forma de pago..." maxlength="500">
+                            <span asp-validation-for="Notes" class="text-danger small"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span class="fw-semibold">Productos</span>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="add-line"><i class="bi bi-plus-lg me-1"></i> Agregar producto</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead>
+                        <tr>
+                            <th class="ps-4" style="min-width: 260px">Producto</th>
+                            <th style="width: 130px">Cantidad</th>
+                            <th class="text-end">Precio</th>
+                            <th class="text-end">Subtotal</th>
+                            <th class="pe-4"></th>
+                        </tr>
+                        </thead>
+                        <tbody id="sale-lines">
+                        @for (var i = 0; i < Model.Lines.Count; i++)
+                        {
+                            <tr class="sale-line">
+                                <td class="ps-4">
+                                    <input type="hidden" name="Lines.Index" value="@i" />
+                                    <select name="Lines[@i].ProductId" class="form-select line-product" required>
+                                        @OpcionesDeProducto(Model.Lines[i].ProductId)
+                                    </select>
+                                </td>
+                                <td><input name="Lines[@i].Quantity" value="@Model.Lines[i].Quantity" type="number" min="1" step="1" class="form-control line-quantity" required /></td>
+                                <td class="text-end line-price">—</td>
+                                <td class="text-end fw-semibold line-total">—</td>
+                                <td class="pe-4 text-end"><button type="button" class="btn btn-sm btn-outline-danger remove-line" title="Quitar"><i class="bi bi-x-lg"></i></button></td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-4">
+            <div class="card summary-card">
+                <div class="card-body p-4">
+                    <h2 class="h6 text-uppercase text-muted mb-3">Resumen</h2>
+                    <div class="d-flex justify-content-between mb-2"><span>Subtotal</span><span id="sum-subtotal">$0.00</span></div>
+                    <div class="d-flex justify-content-between mb-2"><span>IVA (@((tasaIva * 100).ToString("0"))%)</span><span id="sum-tax">$0.00</span></div>
+                    <hr>
+                    <div class="d-flex justify-content-between fs-5 fw-bold"><span>Total</span><span id="sum-total">$0.00</span></div>
+                    <p class="small text-muted mt-3 mb-4">Los valores son una vista previa; el total definitivo lo calcula el servidor con los precios vigentes.</p>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check2-circle me-1"></i> Registrar venta</button>
+                        <a asp-action="Index" class="btn btn-outline-secondary">Cancelar</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <template id="line-template">
+        <tr class="sale-line">
+            <td class="ps-4">
+                <input type="hidden" name="Lines.Index" value="__i__" />
+                <select name="Lines[__i__].ProductId" class="form-select line-product" required>
+                    @OpcionesDeProducto(null)
+                </select>
+            </td>
+            <td><input name="Lines[__i__].Quantity" value="1" type="number" min="1" step="1" class="form-control line-quantity" required /></td>
+            <td class="text-end line-price">—</td>
+            <td class="text-end fw-semibold line-total">—</td>
+            <td class="pe-4 text-end"><button type="button" class="btn btn-sm btn-outline-danger remove-line" title="Quitar"><i class="bi bi-x-lg"></i></button></td>
+        </tr>
+    </template>
+</form>
+
+@section Scripts {
+    <script src="~/js/sale-form.js" asp-append-version="true"></script>
+}

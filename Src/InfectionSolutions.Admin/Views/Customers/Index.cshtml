@@ -1,0 +1,110 @@
+@model CustomerIndexViewModel
+@{
+    ViewData["Title"] = "Clientes";
+}
+
+<section class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Clientes</h1>
+        <p class="text-muted mb-0">Personas y empresas que compran materiales.</p>
+    </div>
+    <div>
+        <a asp-action="Create" class="btn btn-primary"><i class="bi bi-person-plus me-1"></i> Nuevo cliente</a>
+    </div>
+</section>
+
+<section class="card">
+    <div class="card-header py-3">
+        <form asp-action="Index" method="get" class="row g-2 align-items-center" role="search">
+            <div class="col-12 col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="search" name="q" value="@Model.Q" class="form-control" placeholder="Buscar por nombre o documento" aria-label="Buscar clientes">
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="onlyActive" name="onlyActive" value="true"
+                           checked="@Model.OnlyActive" onchange="this.form.submit()">
+                    <label class="form-check-label" for="onlyActive">Solo activos</label>
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-primary">Buscar</button>
+                @if (Model.HasFilters)
+                {
+                    <a asp-action="Index" class="btn btn-link">Quitar filtros</a>
+                }
+            </div>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+            <tr>
+                <th scope="col" class="ps-4">Cliente</th>
+                <th scope="col">Documento</th>
+                <th scope="col">Contacto</th>
+                <th scope="col" class="text-end">Edad</th>
+                <th scope="col">Estado</th>
+                <th scope="col" class="text-end pe-4">Acciones</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var customer in Model.Result.Items)
+            {
+                <tr class="@(customer.IsActive ? null : "text-body-secondary")">
+                    <td class="ps-4">
+                        <div class="fw-semibold">@customer.FullName</div>
+                        @if (customer.HasPortalAccess)
+                        {
+                            <small class="text-primary"><i class="bi bi-globe2 me-1"></i>Usuario del portal</small>
+                        }
+                    </td>
+                    <td>@customer.Document</td>
+                    <td>
+                        <div>@customer.Email</div>
+                        <small class="text-muted">@customer.Phone</small>
+                    </td>
+                    <td class="text-end">@customer.Age</td>
+                    <td>
+                        <span class="badge rounded-pill @(customer.IsActive ? "text-bg-success" : "text-bg-secondary")">
+                            @(customer.IsActive ? "Activo" : "Inactivo")
+                        </span>
+                    </td>
+                    <td class="text-end pe-4">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Acciones">
+                            <a asp-action="Details" asp-route-id="@customer.Id" class="btn btn-outline-secondary" title="Ver detalles"><i class="bi bi-eye"></i></a>
+                            <a asp-action="Edit" asp-route-id="@customer.Id" class="btn btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></a>
+                            <a asp-action="Delete" asp-route-id="@customer.Id" class="btn btn-outline-danger" title="Eliminar"><i class="bi bi-trash"></i></a>
+                        </div>
+                    </td>
+                </tr>
+            }
+
+            @if (Model.Result.Items.Count == 0)
+            {
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-5">
+                        @if (Model.HasFilters)
+                        {
+                            @("No hay clientes con esos filtros. ")
+                            <a asp-action="Index">Ver todos</a>
+                            @(".")
+                        }
+                        else
+                        {
+                            @("Aún no hay clientes registrados. ")
+                            <a asp-action="Create">Registra el primero</a>
+                            @(".")
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <partial name="_Pager" model="Model.Pager" />
+</section>

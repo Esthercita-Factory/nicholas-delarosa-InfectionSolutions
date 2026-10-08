@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/Src/">
+    <Project Path="Src/InfectionSolutions.Domain/InfectionSolutions.Domain.csproj" />
+    <Project Path="Src/InfectionSolutions.Application/InfectionSolutions.Application.csproj" />
+    <Project Path="Src/InfectionSolutions.Infrastructure/InfectionSolutions.Infrastructure.csproj" />
+    <Project Path="Src/InfectionSolutions.Admin/InfectionSolutions.Admin.csproj" />
+    <Project Path="Src/InfectionSolutions.Tests/InfectionSolutions.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,45 @@
+# Borrador del entorno (Semana 1): base de datos + panel administrativo.
+# En las siguientes semanas se agregan los servicios tests, api y client.
+#
+#   docker compose up --build
+#   Panel: http://localhost:8080  (admin@infection.com / Admin123*)
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: infectionsolutions-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-infection_solutions}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      # 5433 en el host para no chocar con un PostgreSQL local en 5432.
+      - "5433:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-infection_solutions}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  admin:
+    build:
+      context: .
+      dockerfile: Src/InfectionSolutions.Admin/Dockerfile
+    container_name: infectionsolutions-admin
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Las migraciones se aplican solas al arrancar el contenedor.
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB:-infection_solutions};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
+      SeedAdmin__Email: ${ADMIN_EMAIL:-admin@infection.com}
+      SeedAdmin__Password: ${ADMIN_PASSWORD:-Admin123*}
+    ports:
+      - "8080:8080"
+
+volumes:
+  db-data:

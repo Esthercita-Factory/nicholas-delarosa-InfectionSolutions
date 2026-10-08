@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] · InfectionSolutions Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="auth-body">
+<main class="auth-wrapper">
+    <section class="auth-hero d-none d-lg-flex">
+        <div>
+            <span class="brand-mark brand-mark-lg"><i class="bi bi-bricks"></i></span>
+            <h1 class="display-6 fw-bold mt-4">InfectionSolutions</h1>
+            <p class="lead mb-4">Panel administrativo para la venta y distribución de materiales de construcción.</p>
+            <ul class="list-unstyled auth-features">
+                <li><i class="bi bi-box-seam"></i> Catálogo e inventario de productos</li>
+                <li><i class="bi bi-people"></i> Gestión de clientes</li>
+                <li><i class="bi bi-receipt"></i> Registro y seguimiento de ventas</li>
+            </ul>
+        </div>
+        <small class="opacity-75">&copy; @DateTime.Now.Year InfectionSolutions</small>
+    </section>
+    <section class="auth-panel">
+        <div class="auth-card">
+            <partial name="_Alerts" />
+            @RenderBody()
+        </div>
+    </section>
+</main>
+
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

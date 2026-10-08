@@ -1,0 +1,48 @@
+@model CustomerResponse
+@{
+    ViewData["Title"] = Model.FullName;
+}
+
+<section class="page-header">
+    <div>
+        <h1 class="h3 mb-1">@Model.FullName</h1>
+        <p class="text-muted mb-0">
+            Documento @Model.Document ·
+            <span class="badge rounded-pill @(Model.IsActive ? "text-bg-success" : "text-bg-secondary")">@(Model.IsActive ? "Activo" : "Inactivo")</span>
+        </p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        @if (Model.IsActive)
+        {
+            <a asp-controller="Sales" asp-action="Create" asp-route-customerId="@Model.Id" class="btn btn-success"><i class="bi bi-cart-plus me-1"></i> Nueva venta</a>
+        }
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary"><i class="bi bi-pencil me-1"></i> Editar</a>
+        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-outline-danger"><i class="bi bi-trash me-1"></i> Eliminar</a>
+    </div>
+</section>
+
+<div class="card">
+    <div class="card-body p-4">
+        <dl class="row mb-0 detail-list">
+            <dt class="col-sm-3">Correo</dt>
+            <dd class="col-sm-9"><a href="mailto:@Model.Email">@Model.Email</a></dd>
+            <dt class="col-sm-3">Teléfono</dt>
+            <dd class="col-sm-9">@Model.Phone</dd>
+            <dt class="col-sm-3">Edad</dt>
+            <dd class="col-sm-9">@Model.Age años</dd>
+            <dt class="col-sm-3">Dirección</dt>
+            <dd class="col-sm-9">@(Model.Address ?? "—")</dd>
+            <dt class="col-sm-3">Acceso al portal</dt>
+            <dd class="col-sm-9">@(Model.HasPortalAccess ? "Sí, tiene usuario con rol Cliente" : "No")</dd>
+            <dt class="col-sm-3">Registrado</dt>
+            <dd class="col-sm-9">@Model.CreatedAt.ToLocalTime().ToString("g")</dd>
+            <dt class="col-sm-3">Última actualización</dt>
+            <dd class="col-sm-9">@(Model.UpdatedAt?.ToLocalTime().ToString("g") ?? "—")</dd>
+        </dl>
+    </div>
+</div>
+
+<div class="d-flex gap-3 mt-3">
+    <a asp-action="Index" class="btn btn-link px-0"><i class="bi bi-arrow-left me-1"></i> Volver al listado</a>
+    <a asp-controller="Sales" asp-action="Index" asp-route-q="@Model.Document" class="btn btn-link px-0"><i class="bi bi-receipt me-1"></i> Ver sus ventas</a>
+</div>

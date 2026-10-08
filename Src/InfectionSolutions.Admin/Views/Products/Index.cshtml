@@ -1,0 +1,115 @@
+@model ProductIndexViewModel
+@{
+    ViewData["Title"] = "Productos";
+}
+
+<section class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Productos</h1>
+        <p class="text-muted mb-0">Catálogo de materiales, precios e inventario.</p>
+    </div>
+    <div>
+        <a asp-action="Create" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i> Nuevo producto</a>
+    </div>
+</section>
+
+<section class="card">
+    <div class="card-header py-3">
+        <form asp-action="Index" method="get" class="row g-2 align-items-center" role="search">
+            <div class="col-12 col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="search" name="q" value="@Model.Q" class="form-control" placeholder="Buscar por nombre, código o categoría" aria-label="Buscar productos">
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <select name="category" class="form-select" aria-label="Filtrar por categoría" onchange="this.form.submit()">
+                    <option value="">Todas las categorías</option>
+                    @foreach (var categoria in Model.Categories)
+                    {
+                        <option value="@categoria" selected="@(categoria == Model.Category)">@categoria</option>
+                    }
+                </select>
+            </div>
+            <div class="col-auto">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="onlyActive" name="onlyActive" value="true"
+                           checked="@Model.OnlyActive" onchange="this.form.submit()">
+                    <label class="form-check-label" for="onlyActive">Solo activos</label>
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-outline-primary">Buscar</button>
+                @if (Model.HasFilters)
+                {
+                    <a asp-action="Index" class="btn btn-link">Quitar filtros</a>
+                }
+            </div>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+            <tr>
+                <th scope="col" class="ps-4">Producto</th>
+                <th scope="col">Categoría</th>
+                <th scope="col" class="text-end">Precio</th>
+                <th scope="col" class="text-end">Stock</th>
+                <th scope="col">Estado</th>
+                <th scope="col" class="text-end pe-4">Acciones</th>
+            </tr>
+            </thead>
+            <tbody>
+            @foreach (var product in Model.Result.Items)
+            {
+                <tr class="@(product.IsActive ? null : "text-body-secondary")">
+                    <td class="ps-4">
+                        <div class="fw-semibold">@product.Name</div>
+                        <small class="text-muted">@product.Sku · @product.Unit</small>
+                    </td>
+                    <td>@product.Category</td>
+                    <td class="text-end">@product.Price.ToString("C2")</td>
+                    <td class="text-end">
+                        <span class="@(product.Stock <= InfectionSolutions.Application.Services.Dashboard.DashboardService.LowStockThreshold ? "text-danger fw-semibold" : null)">@product.Stock</span>
+                    </td>
+                    <td>
+                        <span class="badge rounded-pill @(product.IsActive ? "text-bg-success" : "text-bg-secondary")">
+                            @(product.IsActive ? "Activo" : "Inactivo")
+                        </span>
+                    </td>
+                    <td class="text-end pe-4">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Acciones">
+                            <a asp-action="Details" asp-route-id="@product.Id" class="btn btn-outline-secondary" title="Ver detalles"><i class="bi bi-eye"></i></a>
+                            <a asp-action="Edit" asp-route-id="@product.Id" class="btn btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></a>
+                            <a asp-action="Delete" asp-route-id="@product.Id" class="btn btn-outline-danger" title="Eliminar"><i class="bi bi-trash"></i></a>
+                        </div>
+                    </td>
+                </tr>
+            }
+
+            @if (Model.Result.Items.Count == 0)
+            {
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-5">
+                        @if (Model.HasFilters)
+                        {
+                            @("No hay productos con esos filtros. ")
+                            <a asp-action="Index">Ver todos</a>
+                            @(".")
+                        }
+                        else
+                        {
+                            @("Aún no hay productos registrados. ")
+                            <a asp-action="Create">Registra el primero</a>
+                            @(".")
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <partial name="_Pager" model="Model.Pager" />
+</section>

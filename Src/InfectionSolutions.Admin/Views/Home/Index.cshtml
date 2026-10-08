@@ -1,0 +1,136 @@
+@model DashboardSummary
+@{
+    ViewData["Title"] = "Inicio";
+}
+
+<section class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Resumen del negocio</h1>
+        <p class="text-muted mb-0">Métricas generales de productos, clientes y ventas.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-controller="Sales" asp-action="Create" class="btn btn-primary"><i class="bi bi-cart-plus me-1"></i> Nueva venta</a>
+    </div>
+</section>
+
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+        <a asp-controller="Products" asp-action="Index" class="stat-card">
+            <span class="stat-icon bg-primary-subtle text-primary"><i class="bi bi-box-seam"></i></span>
+            <div>
+                <div class="stat-label">Productos</div>
+                <div class="stat-value">@Model.TotalProducts</div>
+                <div class="stat-hint">@Model.ActiveProducts activos en catálogo</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <a asp-controller="Customers" asp-action="Index" class="stat-card">
+            <span class="stat-icon bg-success-subtle text-success"><i class="bi bi-people"></i></span>
+            <div>
+                <div class="stat-label">Clientes</div>
+                <div class="stat-value">@Model.TotalCustomers</div>
+                <div class="stat-hint">registrados</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <a asp-controller="Sales" asp-action="Index" class="stat-card">
+            <span class="stat-icon bg-warning-subtle text-warning-emphasis"><i class="bi bi-receipt"></i></span>
+            <div>
+                <div class="stat-label">Ventas</div>
+                <div class="stat-value">@Model.TotalSales</div>
+                <div class="stat-hint">@Model.SalesThisMonth este mes</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="stat-card">
+            <span class="stat-icon bg-info-subtle text-info-emphasis"><i class="bi bi-cash-stack"></i></span>
+            <div>
+                <div class="stat-label">Ingresos del mes</div>
+                <div class="stat-value">@Model.RevenueThisMonth.ToString("C0")</div>
+                <div class="stat-hint">IVA incluido</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-xl-7">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Últimas ventas</span>
+                <a asp-controller="Sales" asp-action="Index" class="small">Ver todas</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th class="ps-4">Venta</th>
+                        <th>Cliente</th>
+                        <th class="text-end pe-4">Total</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var venta in Model.RecentSales)
+                    {
+                        <tr class="@(venta.IsCancelled ? "text-body-secondary" : null)">
+                            <td class="ps-4">
+                                <a asp-controller="Sales" asp-action="Details" asp-route-id="@venta.Id" class="fw-semibold">@venta.SaleNumber</a>
+                                <div class="small text-muted">@venta.SaleDate.ToLocalTime().ToString("g")</div>
+                            </td>
+                            <td>@venta.CustomerName</td>
+                            <td class="text-end pe-4">
+                                @if (venta.IsCancelled)
+                                {
+                                    <span class="badge rounded-pill text-bg-secondary">Anulada</span>
+                                }
+                                else
+                                {
+                                    @venta.Total.ToString("C2")
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (Model.RecentSales.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-5">
+                                Aún no hay ventas. <a asp-controller="Sales" asp-action="Create">Registra la primera</a>.
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-5">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Stock bajo</span>
+                <span class="badge rounded-pill text-bg-warning">≤ @InfectionSolutions.Application.Services.Dashboard.DashboardService.LowStockThreshold unidades</span>
+            </div>
+            <ul class="list-group list-group-flush">
+                @foreach (var producto in Model.LowStockProducts)
+                {
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-4">
+                        <div>
+                            <a asp-controller="Products" asp-action="Details" asp-route-id="@producto.Id" class="fw-semibold">@producto.Name</a>
+                            <div class="small text-muted">@producto.Sku</div>
+                        </div>
+                        <span class="badge rounded-pill @(producto.Stock == 0 ? "text-bg-danger" : "text-bg-warning")">@producto.Stock</span>
+                    </li>
+                }
+                @if (Model.LowStockProducts.Count == 0)
+                {
+                    <li class="list-group-item text-center text-muted py-5">
+                        <i class="bi bi-check2-circle text-success me-1"></i> Todo el inventario está por encima del mínimo.
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>

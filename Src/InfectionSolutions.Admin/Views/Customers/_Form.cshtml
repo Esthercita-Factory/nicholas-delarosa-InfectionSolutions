@@ -1,0 +1,44 @@
+@model CustomerFormViewModel
+
+<div class="row g-3">
+    <div class="col-12 col-sm-4">
+        <label asp-for="Document" class="form-label"></label>
+        <input asp-for="Document" class="form-control" placeholder="1020458796" maxlength="20">
+        <span asp-validation-for="Document" class="text-danger small"></span>
+    </div>
+    <div class="col-12 col-sm-8">
+        <label asp-for="FullName" class="form-label"></label>
+        <input asp-for="FullName" class="form-control" placeholder="Laura Mendoza Pérez" maxlength="120">
+        <span asp-validation-for="FullName" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12 col-sm-4">
+        <label asp-for="Age" class="form-label"></label>
+        @* Texto a proposito: la conversion a entero se valida en el servidor con try-catch. *@
+        <input asp-for="Age" class="form-control" type="text" inputmode="numeric" placeholder="35" maxlength="10">
+        <span asp-validation-for="Age" class="text-danger small"></span>
+    </div>
+    <div class="col-12 col-sm-8">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" type="email" placeholder="nombre@correo.com" maxlength="120">
+        <span asp-validation-for="Email" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12 col-sm-4">
+        <label asp-for="Phone" class="form-label"></label>
+        <input asp-for="Phone" class="form-control" type="tel" placeholder="+57 300 000 0000" maxlength="20">
+        <span asp-validation-for="Phone" class="text-danger small"></span>
+    </div>
+    <div class="col-12 col-sm-8">
+        <label asp-for="Address" class="form-label"></label>
+        <input asp-for="Address" class="form-control" placeholder="Calle 100 # 15-20, Bogotá" maxlength="150">
+        <span asp-validation-for="Address" class="text-danger small"></span>
+    </div>
+
+    <div class="col-12">
+        <div class="form-check form-switch">
+            <input asp-for="IsActive" class="form-check-input" role="switch">
+            <label asp-for="IsActive" class="form-check-label"></label>
+        </div>
+    </div>
+</div>

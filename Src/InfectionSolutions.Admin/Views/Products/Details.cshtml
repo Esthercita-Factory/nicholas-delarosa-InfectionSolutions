@@ -1,0 +1,59 @@
+@model ProductResponse
+@{
+    ViewData["Title"] = Model.Name;
+}
+
+<section class="page-header">
+    <div>
+        <h1 class="h3 mb-1">@Model.Name</h1>
+        <p class="text-muted mb-0">
+            @Model.Sku ·
+            <span class="badge rounded-pill @(Model.IsActive ? "text-bg-success" : "text-bg-secondary")">@(Model.IsActive ? "Activo" : "Inactivo")</span>
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-primary"><i class="bi bi-pencil me-1"></i> Editar</a>
+        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-outline-danger"><i class="bi bi-trash me-1"></i> Eliminar</a>
+    </div>
+</section>
+
+<div class="row g-3">
+    <div class="col-12 col-lg-8">
+        <div class="card h-100">
+            <div class="card-body p-4">
+                <dl class="row mb-0 detail-list">
+                    <dt class="col-sm-4">Categoría</dt>
+                    <dd class="col-sm-8">@Model.Category</dd>
+                    <dt class="col-sm-4">Unidad de venta</dt>
+                    <dd class="col-sm-8">@Model.Unit</dd>
+                    <dt class="col-sm-4">Descripción</dt>
+                    <dd class="col-sm-8">@(Model.Description ?? "—")</dd>
+                    <dt class="col-sm-4">Creado</dt>
+                    <dd class="col-sm-8">@Model.CreatedAt.ToLocalTime().ToString("g")</dd>
+                    <dt class="col-sm-4">Última actualización</dt>
+                    <dd class="col-sm-8">@(Model.UpdatedAt?.ToLocalTime().ToString("g") ?? "—")</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-lg-4">
+        <div class="stat-card mb-3">
+            <span class="stat-icon bg-primary-subtle text-primary"><i class="bi bi-tag"></i></span>
+            <div>
+                <div class="stat-label">Precio sin IVA</div>
+                <div class="stat-value">@Model.Price.ToString("C2")</div>
+                <div class="stat-hint">Con IVA: @((Model.Price * (1 + InfectionSolutions.Domain.Services.InventoryCalculator.TaxRate)).ToString("C2"))</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <span class="stat-icon bg-warning-subtle text-warning-emphasis"><i class="bi bi-boxes"></i></span>
+            <div>
+                <div class="stat-label">Stock disponible</div>
+                <div class="stat-value">@Model.Stock</div>
+                <div class="stat-hint">@Model.Unit</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<a asp-action="Index" class="btn btn-link px-0 mt-3"><i class="bi bi-arrow-left me-1"></i> Volver al listado</a>

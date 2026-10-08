@@ -1,0 +1,29 @@
+@model CustomerResponse
+@{
+    ViewData["Title"] = "Eliminar cliente";
+}
+
+<section class="page-header">
+    <div>
+        <h1 class="h3 mb-1">Eliminar cliente</h1>
+        <p class="text-muted mb-0">Esta acción no se puede deshacer.</p>
+    </div>
+</section>
+
+<div class="row">
+    <div class="col-12 col-lg-8 col-xl-6">
+        <div class="card border-danger-subtle">
+            <div class="card-body p-4">
+                <p>¿Seguro que deseas eliminar a <strong>@Model.FullName</strong> (documento @Model.Document)?</p>
+                <p class="small text-muted">
+                    Si el cliente tiene ventas registradas no se podrá eliminar; en ese caso edítalo y desactívalo.
+                </p>
+
+                <form asp-action="Delete" asp-route-id="@Model.Id" method="post" class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i> Eliminar</button>
+                    <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Cancelar</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
