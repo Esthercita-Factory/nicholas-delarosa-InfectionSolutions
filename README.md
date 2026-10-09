@@ -3,8 +3,9 @@
 Sistema para la **venta y distribución de materiales de construcción**. Incluye el **panel
 administrativo** en ASP.NET Core MVC (vistas Razor) con PostgreSQL, Identity con roles y la gestión de
 productos, clientes y ventas (Semana 1), además de la carga masiva desde Excel, las exportaciones a
-Excel/PDF y los recibos PDF de cada venta (Semana 2), y una **API REST** con JWT, Swagger y correo SMTP
-para el portal de clientes (Semana 3).
+Excel/PDF y los recibos PDF de cada venta (Semana 2), una **API REST** con JWT, Swagger y correo SMTP
+(Semana 3) y el **portal de clientes** en Angular, donde los clientes se registran, compran y reciben el
+comprobante (Semana 4).
 
 | | |
 |---|---|
@@ -87,11 +88,18 @@ La guía para consumirla, con ejemplos, está en [docs/api.md](docs/api.md).
   empresarial es solo cambiar la configuración. Si el correo falla, la compra no se deshace y la respuesta
   lo indica (`receiptEmailSent`).
 
+### Semana 4: portal de clientes (Angular)
+
+El portal de clientes es un **repositorio aparte** (`InfectionSolutions.Client`, Angular 21) con su propia
+imagen. Consume esta API: registro, inicio de sesión con JWT, catálogo, carrito, compra con comprobante por
+correo y *Mis compras*. Solo usa endpoints del rol Cliente (`/api/auth/*`, `GET /api/products*` y
+`/api/me/sales/*`); la API ya permite su origen (`http://localhost:4200`) en `Cors:AllowedOrigins`.
+
 ## Arquitectura
 
-Arquitectura limpia en capas, basada en la estructura de
-[nuz777-Firmeza](https://github.com/Esthercita-Factory/nuz777-Firmeza), con los controladores,
-ViewModels y vistas del panel al estilo de [RRHH](https://github.com/jcomte23/RRHH).
+Arquitectura limpia en capas: el dominio no depende de nada, los casos de uso viven en Application y la
+persistencia, la seguridad y el correo se conectan desde Infrastructure. Así el panel MVC y la API
+comparten las mismas reglas de negocio sin duplicarlas.
 
 ```
 InfectionSolutions.slnx
@@ -164,6 +172,9 @@ Los diagramas están en [docs/diagrams.md](docs/diagrams.md).
    ```
 
    Swagger queda en http://localhost:5120/swagger.
+
+5. El portal de clientes (Angular) está en su propio repositorio. Con esta API corriendo, se levanta con
+   `npm install` y `npm start` en http://localhost:4200.
 
 ### Migraciones
 
