@@ -21,8 +21,15 @@ ENV ASPNETCORE_URLS=http://+:8080 \
     UseHttpsRedirection=false
 EXPOSE 8080
 COPY --from=build /app/publish .
-# Carpetas que la app escribe en tiempo de ejecucion: recibos PDF y logs de importacion.
-RUN mkdir -p /app/wwwroot/recibos /app/App_Data/import-logs \
-    && chown -R $APP_UID /app/wwwroot/recibos /app/App_Data
+# libgssapi-krb5-2: sin ella Npgsql escribe en el log "libgssapi_krb5.so.2: cannot open
+# shared object file" al conectarse (no usamos Kerberos, pero el aviso confunde).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
+# Carpetas que la app escribe en tiempo de ejecucion: recibos PDF, logs de importacion y
+# las llaves de Data Protection (cookies de sesion y antiforgery). Se crean con dueño
+# $APP_UID para que los volumenes de docker-compose hereden ese permiso.
+RUN mkdir -p /app/wwwroot/recibos /app/App_Data/import-logs /home/app/.aspnet/DataProtection-Keys \
+    && chown -R $APP_UID /app/wwwroot/recibos /app/App_Data /home/app/.aspnet
 USER $APP_UID
 ENTRYPOINT ["dotnet", "InfectionSolutions.Admin.dll"]

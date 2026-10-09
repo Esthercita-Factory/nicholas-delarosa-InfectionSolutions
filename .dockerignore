@@ -5,7 +5,18 @@
 **/node_modules/
 **/*.user
 .git/
+.github/
 Historias_de_usuario_M6/
 Repos/
 docs/
 *.md
+
+# Datos generados al correr la app en local (recibos con datos de clientes, logs de
+# importacion): nunca deben quedar dentro de una imagen.
+**/wwwroot/recibos/
+**/App_Data/
+
+# Secretos y notas locales.
+.env
+**/appsettings.*.local.json
+Commitazo.txt

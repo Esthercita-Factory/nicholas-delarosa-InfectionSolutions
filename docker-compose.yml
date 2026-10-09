@@ -1,78 +1,123 @@
-# Entorno (Semanas 1-3): base de datos + panel administrativo + API.
-# En las siguientes semanas se agregan los servicios tests y client.
+# InfectionSolutions completo: pruebas -> base de datos, API, panel y portal de clientes.
 #
 #   docker compose up --build
-#   Panel:   http://localhost:8080          (admin@infection.com / Admin123*)
-#   API:     http://localhost:8081/swagger
+#
+# 1. "tests" corre las pruebas xUnit. Si alguna falla, el contenedor sale con codigo != 0
+#    y compose NO levanta nada mas (todos dependen de service_completed_successfully).
+# 2. Si pasan: PostgreSQL, y cuando esta lista, la API y el panel; despues el portal.
+#
+#   Panel administrativo:  http://localhost:8080   (admin@infection.com / Admin123*)
+#   API (Swagger):         http://localhost:8081/swagger
+#   Portal de clientes:    http://localhost:8082
+#
+# Cada servicio tiene su imagen publicada en GHCR (la publica GitHub Actions en cada push)
+# y tambien se puede construir desde el codigo. En el servidor: "docker compose pull" y
+# "docker compose up -d" (ver docs/despliegue.md). Puertos y secretos: archivo .env.
+
+name: infectionsolutions
 
 services:
+  tests:
+    build:
+      context: .
+      dockerfile: Src/InfectionSolutions.Tests/Dockerfile
+    image: infectionsolutions-tests:local
+    # La imagen de pruebas no se publica: siempre se construye desde el codigo.
+    pull_policy: build
+    restart: "no"
+
   db:
     image: postgres:17-alpine
-    container_name: infectionsolutions-db
     restart: unless-stopped
+    depends_on:
+      tests:
+        condition: service_completed_successfully
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-infection_solutions}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    ports:
-      # 5433 en el host para no chocar con un PostgreSQL local en 5432.
-      - "5433:5432"
+    # Sin "ports": la base solo es visible para los contenedores de este proyecto.
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-infection_solutions}"]
       interval: 5s
       timeout: 5s
-      retries: 10
-
-  admin:
-    build:
-      context: .
-      dockerfile: Src/InfectionSolutions.Admin/Dockerfile
-    container_name: infectionsolutions-admin
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      # Las migraciones se aplican solas al arrancar el contenedor.
-      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB:-infection_solutions};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
-      SeedAdmin__Email: ${ADMIN_EMAIL:-admin@infection.com}
-      SeedAdmin__Password: ${ADMIN_PASSWORD:-Admin123*}
-    ports:
-      - "8080:8080"
-    volumes:
-      # Recibos PDF y logs de importacion sobreviven a recrear el contenedor.
-      - receipts:/app/wwwroot/recibos
-      - import-logs:/app/App_Data/import-logs
+      retries: 20
 
   api:
+    image: ${API_IMAGE:-ghcr.io/esthercita-factory/nicholas-delarosa-infectionsolutions-api:latest}
     build:
       context: .
       dockerfile: Src/InfectionSolutions.Api/Dockerfile
-    container_name: infectionsolutions-api
     restart: unless-stopped
     depends_on:
+      tests:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
     environment:
       ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB:-infection_solutions};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
       SeedAdmin__Email: ${ADMIN_EMAIL:-admin@infection.com}
       SeedAdmin__Password: ${ADMIN_PASSWORD:-Admin123*}
-      # 32+ caracteres. El valor por defecto es solo para levantarlo en local: en un
+      # 32+ caracteres. El valor por defecto es solo para probar en local: en un
       # servidor define JWT_SIGNING_KEY en .env (copia .env.example).
       Jwt__SigningKey: ${JWT_SIGNING_KEY:-compose-local-no-usar-en-produccion-0123456789}
       Email__Smtp__UserName: ${SMTP_USERNAME:-}
       Email__Smtp__Password: ${SMTP_PASSWORD:-}
       Cors__AllowedOrigins__0: ${CLIENT_ORIGIN:-http://localhost:4200}
-      Swagger__Enabled: "true"
+      Swagger__Enabled: ${SWAGGER_ENABLED:-true}
     ports:
-      - "8081:8080"
+      - "${API_PORT:-8081}:8080"
     volumes:
-      # Mismo volumen que el panel: los recibos se ven desde ambos lados.
+      # Mismo volumen que el panel: un recibo generado en un lado se ve en el otro.
       - receipts:/app/App_Data/recibos
+
+  admin:
+    image: ${ADMIN_IMAGE:-ghcr.io/esthercita-factory/nicholas-delarosa-infectionsolutions-admin:latest}
+    build:
+      context: .
+      dockerfile: Src/InfectionSolutions.Admin/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      tests:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB:-infection_solutions};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
+      SeedAdmin__Email: ${ADMIN_EMAIL:-admin@infection.com}
+      SeedAdmin__Password: ${ADMIN_PASSWORD:-Admin123*}
+      # Datos de demostracion (12 productos, 12 clientes y ventas) solo si la base esta vacia.
+      SeedDemoData: ${SEED_DEMO_DATA:-true}
+    ports:
+      - "${ADMIN_PORT:-8080}:8080"
+    volumes:
+      - receipts:/app/wwwroot/recibos
+      - import-logs:/app/App_Data/import-logs
+      # Llaves de cookies y antiforgery: sin esto, recrear el contenedor cierra las sesiones.
+      - admin-keys:/home/app/.aspnet/DataProtection-Keys
+
+  client:
+    image: ${CLIENT_IMAGE:-ghcr.io/esthercita-factory/nicholas-delarosa-infectionsolutions.client:latest}
+    build:
+      # El portal vive en su propio repositorio. Por defecto se construye desde GitHub;
+      # con CLIENT_BUILD_CONTEXT=../InfectionSolutions.Client se usa la copia local.
+      context: ${CLIENT_BUILD_CONTEXT:-https://github.com/Esthercita-Factory/nicholas-delarosa-InfectionSolutions.Client.git#main}
+    restart: unless-stopped
+    depends_on:
+      tests:
+        condition: service_completed_successfully
+      api:
+        condition: service_started
+    environment:
+      # Nginx reenvia /api a este destino: portal y API quedan en el mismo origen.
+      API_UPSTREAM: http://api:8080
+    ports:
+      - "${CLIENT_PORT:-8082}:8080"
 
 volumes:
   db-data:
   receipts:
   import-logs:
+  admin-keys:

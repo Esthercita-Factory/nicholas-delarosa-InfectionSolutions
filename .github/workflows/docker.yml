@@ -1,0 +1,86 @@
+# Pruebas y publicacion de las imagenes del backend en GitHub Container Registry.
+# Cada push a main: las pruebas corren dentro de Docker (misma imagen que el servicio
+# "tests" del compose) y, solo si pasan, se publican
+#   ghcr.io/<owner>/<repo>-admin   y   ghcr.io/<owner>/<repo>-api   (:latest y :sha-<commit>)
+# La imagen de pruebas no se publica: solo sirve como puerta.
+name: Docker
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Construir la imagen de pruebas
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Src/InfectionSolutions.Tests/Dockerfile
+          push: false
+          load: true
+          tags: infectionsolutions-tests:ci
+          cache-from: type=gha,scope=tests
+          cache-to: type=gha,mode=max,scope=tests
+
+      - name: Correr las pruebas
+        run: docker run --rm infectionsolutions-tests:ci
+
+  docker:
+    # Sin needs, las imagenes se publicarian aunque las pruebas fallen.
+    needs: tests
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: admin
+            dockerfile: Src/InfectionSolutions.Admin/Dockerfile
+          - name: api
+            dockerfile: Src/InfectionSolutions.Api/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      # GHCR exige el nombre de la imagen en minusculas.
+      - name: Nombre de la imagen
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}-${{ matrix.name }}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha
+            type=ref,event=tag
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}

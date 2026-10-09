@@ -4,8 +4,8 @@ Sistema para la **venta y distribución de materiales de construcción**. Incluy
 administrativo** en ASP.NET Core MVC (vistas Razor) con PostgreSQL, Identity con roles y la gestión de
 productos, clientes y ventas (Semana 1), además de la carga masiva desde Excel, las exportaciones a
 Excel/PDF y los recibos PDF de cada venta (Semana 2), una **API REST** con JWT, Swagger y correo SMTP
-(Semana 3) y el **portal de clientes** en Angular, donde los clientes se registran, compran y reciben el
-comprobante (Semana 4).
+(Semana 3), el **portal de clientes** en Angular, donde los clientes se registran, compran y reciben el
+comprobante (Semana 4), y el **despliegue con Docker** que corre las pruebas antes de levantar todo (Semana 5).
 
 | | |
 |---|---|
@@ -109,10 +109,12 @@ InfectionSolutions.slnx
 │   ├── InfectionSolutions.Infrastructure/  EF Core (DbContext, configuraciones, migraciones), repositorios, Identity, recibos en disco
 │   ├── InfectionSolutions.Admin/           Panel MVC: Controllers, ViewModels, Views, wwwroot
 │   ├── InfectionSolutions.Api/             API REST: Controllers, ViewModels, Mappings (AutoMapper), JWT, Swagger
-│   └── InfectionSolutions.Tests/           Pruebas xUnit de Domain, Application, Infrastructure y la API
+│   └── InfectionSolutions.Tests/           Pruebas xUnit (y su Dockerfile: la puerta del despliegue)
 ├── docs/diagrams.md                        Modelo entidad-relación, diagrama de clases y flujo de venta
 ├── docs/api.md                             Cómo consumir la API (autenticación, endpoints, errores, correo)
-├── docker-compose.yml                      PostgreSQL + Admin + API
+├── docs/despliegue.md                      Docker, GitHub Actions y despliegue en el servidor
+├── docker-compose.yml                      tests → PostgreSQL + API + Admin + portal de clientes
+├── .github/workflows/docker.yml            Pruebas y publicación de imágenes en GHCR
 └── dotnet-tools.json                       dotnet-ef como herramienta local
 ```
 
@@ -205,17 +207,35 @@ Las pruebas cubren:
   activos), el correo con el comprobante adjunto (y que un fallo de SMTP no rompa la compra), los perfiles
   de AutoMapper, la firma y los claims del JWT, y los códigos HTTP de `ProductsController`.
 
-## Ejecución con Docker
+## Ejecución con Docker (Semana 5)
 
 ```bash
 docker compose up --build
 ```
 
-Levanta PostgreSQL (expuesto en el puerto **5433** del host), el panel en http://localhost:8080 y la API
-en http://localhost:8081/swagger. Las credenciales, la clave JWT y la cuenta de Gmail se configuran
-copiando `.env.example` como `.env`. Los recibos PDF y los logs de importación se guardan en volúmenes
-(`receipts` e `import-logs`), así que no se pierden al recrear los contenedores. En las próximas semanas
-se agregarán los servicios `tests` y `client`.
+Un solo comando, sin abrir ningún IDE:
+
+1. **`tests`** compila la solución y corre las pruebas xUnit dentro de un contenedor. Si alguna falla, el
+   contenedor sale con código distinto de 0 y compose **no levanta nada más**: todos los servicios dependen
+   de él con `condition: service_completed_successfully`.
+2. Si pasan, arranca **PostgreSQL** y, cuando acepta conexiones, la **API** y el **panel** (las migraciones se
+   aplican solas, de a una gracias a un candado de PostgreSQL), y después el **portal de clientes**.
+
+| Servicio | Dirección | Imagen |
+|---|---|---|
+| Panel administrativo | http://localhost:8080 (`admin@infection.com` / `Admin123*`) | `...-infectionsolutions-admin` |
+| API (Swagger) | http://localhost:8081/swagger | `...-infectionsolutions-api` |
+| Portal de clientes | http://localhost:8082 | `...-infectionsolutions.client` |
+
+Backend y frontend son imágenes separadas. El portal se construye directamente desde
+[su repositorio](https://github.com/Esthercita-Factory/nicholas-delarosa-InfectionSolutions.Client) y su
+Nginx reenvía `/api` a la API, así que el navegador ve un solo origen. La base de datos no se publica fuera
+de Docker. Puertos y secretos (contraseña de la base, clave JWT, Gmail) se configuran copiando
+`.env.example` como `.env`. Base, recibos, logs de importación y sesiones del panel viven en volúmenes.
+
+Cada push a `main` ejecuta GitHub Actions (`.github/workflows/docker.yml`): corre las pruebas y, solo si
+pasan, publica las imágenes en GitHub Container Registry. El despliegue en el servidor (`docker compose
+pull` + `docker compose up -d`) está en [docs/despliegue.md](docs/despliegue.md).
 
 ## Convenciones
 

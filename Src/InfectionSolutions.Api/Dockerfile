@@ -21,6 +21,11 @@ ENV ASPNETCORE_URLS=http://+:8080 \
     Receipts__Path=/app/App_Data/recibos
 EXPOSE 8080
 COPY --from=build /app/publish .
+# libgssapi-krb5-2: sin ella Npgsql escribe en el log "libgssapi_krb5.so.2: cannot open
+# shared object file" al conectarse (no usamos Kerberos, pero el aviso confunde).
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
+    && rm -rf /var/lib/apt/lists/*
 # Carpeta que la API escribe en tiempo de ejecucion: recibos PDF.
 RUN mkdir -p /app/App_Data/recibos && chown -R $APP_UID /app/App_Data
 USER $APP_UID
