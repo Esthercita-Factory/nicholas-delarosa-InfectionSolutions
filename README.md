@@ -90,7 +90,7 @@ La guía para consumirla, con ejemplos, está en [docs/api.md](docs/api.md).
 
 ### Semana 4: portal de clientes (Angular)
 
-El portal de clientes es un **repositorio aparte** (`InfectionSolutions.Client`, Angular 21) con su propia
+El portal de clientes es un **repositorio aparte**, [InfectionSolutions.Client](https://github.com/Esthercita-Factory/nicholas-delarosa-InfectionSolutions.Client) (Angular 21), con su propia
 imagen. Consume esta API: registro, inicio de sesión con JWT, catálogo, carrito, compra con comprobante por
 correo y *Mis compras*. Solo usa endpoints del rol Cliente (`/api/auth/*`, `GET /api/products*` y
 `/api/me/sales/*`); la API ya permite su origen (`http://localhost:4200`) en `Cors:AllowedOrigins`.
@@ -173,7 +173,8 @@ Los diagramas están en [docs/diagrams.md](docs/diagrams.md).
 
    Swagger queda en http://localhost:5120/swagger.
 
-5. El portal de clientes (Angular) está en su propio repositorio. Con esta API corriendo, se levanta con
+5. El portal de clientes (Angular) está en su propio repositorio:
+   [InfectionSolutions.Client](https://github.com/Esthercita-Factory/nicholas-delarosa-InfectionSolutions.Client). Con esta API corriendo, se levanta con
    `npm install` y `npm start` en http://localhost:4200.
 
 ### Migraciones
