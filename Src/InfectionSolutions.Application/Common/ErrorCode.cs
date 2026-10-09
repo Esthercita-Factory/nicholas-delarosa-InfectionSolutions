@@ -5,5 +5,7 @@ public enum ErrorCode
     Validation,
     NotFound,
     Conflict,
-    BusinessRule
+    BusinessRule,
+    Unauthorized,
+    Forbidden
 }

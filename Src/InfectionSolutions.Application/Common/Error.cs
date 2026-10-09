@@ -13,4 +13,8 @@ public sealed record Error(ErrorCode Code, string Message, string? Field = null)
     public static Error Conflict(string message, string? field = null) => new(ErrorCode.Conflict, message, field);
 
     public static Error BusinessRule(string message, string? field = null) => new(ErrorCode.BusinessRule, message, field);
+
+    public static Error Unauthorized(string message) => new(ErrorCode.Unauthorized, message);
+
+    public static Error Forbidden(string message) => new(ErrorCode.Forbidden, message);
 }

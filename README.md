@@ -3,11 +3,13 @@
 Sistema para la **venta y distribución de materiales de construcción**. Incluye el **panel
 administrativo** en ASP.NET Core MVC (vistas Razor) con PostgreSQL, Identity con roles y la gestión de
 productos, clientes y ventas (Semana 1), además de la carga masiva desde Excel, las exportaciones a
-Excel/PDF y los recibos PDF de cada venta (Semana 2).
+Excel/PDF y los recibos PDF de cada venta (Semana 2), y una **API REST** con JWT, Swagger y correo SMTP
+para el portal de clientes (Semana 3).
 
 | | |
 |---|---|
-| Stack | .NET 10 · ASP.NET Core MVC · EF Core 10 + Npgsql · ASP.NET Core Identity · Bootstrap 5 |
+| Stack | .NET 10 · ASP.NET Core MVC y Web API · EF Core 10 + Npgsql · ASP.NET Core Identity · Bootstrap 5 |
+| API | JWT Bearer · AutoMapper · Swagger (Swashbuckle) · MailKit (SMTP de Gmail) |
 | Base de datos | PostgreSQL, creada **solo con migraciones** de EF Core |
 | Pruebas | xUnit + NSubstitute |
 | Documentos | EPPlus (lectura y escritura de Excel) y QuestPDF (recibos y reportes PDF) |
@@ -61,6 +63,30 @@ Excel/PDF y los recibos PDF de cada venta (Semana 2).
 - Los datos de la empresa que aparecen en los documentos se configuran en la sección `Company` de
   `appsettings.json`.
 
+### Semana 3: API REST
+
+La guía para consumirla, con ejemplos, está en [docs/api.md](docs/api.md).
+
+- **Proyecto `InfectionSolutions.Api`** en la misma solución. Se conecta a la **misma base de datos** que
+  el panel y reutiliza sus servicios, así que las reglas (stock, IVA, duplicados, búsquedas sin tildes)
+  son idénticas.
+- **Identity + JWT**: `POST /api/auth/login` emite el token para administradores y clientes. El rol
+  **Cliente** se usa en el registro público (`POST /api/auth/register`), que crea la cuenta y la ficha de
+  cliente. Las políticas `AdminOnly` y `CustomerOnly` separan lo que puede hacer cada rol, y todo lo demás
+  exige un token válido.
+- **DTOs y AutoMapper**: los perfiles `ProductProfile`, `CustomerProfile` y `SaleProfile` (en
+  `Application/Mappings`) convierten las entidades en DTOs, también para el panel. En la API,
+  `ApiMappingProfile` convierte los ViewModels de entrada (con DataAnnotations) en DTOs.
+- **Controladores REST**: `Products` y `Customers` con GET, POST, PUT y DELETE. `Sales` permite listar,
+  ver, registrar y anular: el DELETE anula la venta, porque las ventas no se borran. `MySales` tiene las
+  compras del cliente autenticado y la descarga de su comprobante. Todos responden DTOs, y los errores
+  salen como ProblemDetails con el campo que falló.
+- **Swagger** con los comentarios XML de cada endpoint y el botón *Authorize* para el JWT.
+- **Correo SMTP real** (Gmail con contraseña de aplicación) detrás de la interfaz `IEmailSender`. Se envía
+  la bienvenida al registrarse y el **comprobante PDF adjunto** después de cada compra. Pasar a un SMTP
+  empresarial es solo cambiar la configuración. Si el correo falla, la compra no se deshace y la respuesta
+  lo indica (`receiptEmailSent`).
+
 ## Arquitectura
 
 Arquitectura limpia en capas, basada en la estructura de
@@ -74,20 +100,23 @@ InfectionSolutions.slnx
 │   ├── InfectionSolutions.Application/     Casos de uso, DTOs, interfaces, Result<T>, importación/exportación/recibos
 │   ├── InfectionSolutions.Infrastructure/  EF Core (DbContext, configuraciones, migraciones), repositorios, Identity, recibos en disco
 │   ├── InfectionSolutions.Admin/           Panel MVC: Controllers, ViewModels, Views, wwwroot
-│   └── InfectionSolutions.Tests/           Pruebas xUnit de Domain y Application
+│   ├── InfectionSolutions.Api/             API REST: Controllers, ViewModels, Mappings (AutoMapper), JWT, Swagger
+│   └── InfectionSolutions.Tests/           Pruebas xUnit de Domain, Application, Infrastructure y la API
 ├── docs/diagrams.md                        Modelo entidad-relación, diagrama de clases y flujo de venta
-├── docker-compose.yml                      PostgreSQL + Admin
+├── docs/api.md                             Cómo consumir la API (autenticación, endpoints, errores, correo)
+├── docker-compose.yml                      PostgreSQL + Admin + API
 └── dotnet-tools.json                       dotnet-ef como herramienta local
 ```
 
 Flujo: `Controller → Service (Application) → Repository (Infrastructure) → ApplicationDbContext → PostgreSQL`.
 
 - Los **controladores** trabajan con ViewModels y DTOs; nunca tocan entidades ni el `DbContext`.
-- Los **servicios** son el único lugar donde una entidad se convierte en DTO. Validan las reglas de
-  negocio y devuelven `Result<T>`.
+- Los **servicios** son el único lugar donde una entidad se convierte en DTO (con los perfiles de
+  AutoMapper). Validan las reglas de negocio y devuelven `Result<T>`.
 - Los **repositorios** hacen las consultas, con `AsNoTracking` en los listados y `ILIKE` en las búsquedas.
-- `Infrastructure` registra Identity sin esquema de autenticación: el Admin usa **cookies** y la API
-  (Semana 3) agregará **JWT** sobre la misma base.
+- `Infrastructure` registra Identity sin esquema de autenticación: el Admin usa **cookies** y la API usa
+  **JWT** sobre la misma base. También implementa el envío de correo (`SmtpEmailSender`, MailKit) y la
+  emisión de tokens (`JwtTokenService`).
 
 Los diagramas están en [docs/diagrams.md](docs/diagrams.md).
 
@@ -125,6 +154,17 @@ Los diagramas están en [docs/diagrams.md](docs/diagrams.md).
 
    Puedes cambiar estas credenciales en la sección `SeedAdmin` de `appsettings.json`.
 
+4. Ejecutar la API (puede correr a la vez que el panel). Usa la misma cadena de conexión, así que hay
+   que guardarla también en sus *user-secrets* (`--project Src/InfectionSolutions.Api`). Para que los
+   correos salgan de verdad, configura las credenciales de Gmail como se explica en
+   [docs/api.md](docs/api.md#correo-con-gmail).
+
+   ```bash
+   dotnet run --project Src/InfectionSolutions.Api
+   ```
+
+   Swagger queda en http://localhost:5120/swagger.
+
 ### Migraciones
 
 ```bash
@@ -149,6 +189,9 @@ Las pruebas cubren:
 - La carga masiva: formatos de números y fechas, sinónimos de columnas, fusión de filas, validaciones e
   importación completa de un `.xlsx` en memoria.
 - Los recibos PDF y las exportaciones, incluido exportar un Excel y volver a importarlo.
+- La API: el registro y el login (`AuthService`), las compras del portal (solo las propias, catálogo de
+  activos), el correo con el comprobante adjunto (y que un fallo de SMTP no rompa la compra), los perfiles
+  de AutoMapper, la firma y los claims del JWT, y los códigos HTTP de `ProductsController`.
 
 ## Ejecución con Docker
 
@@ -156,10 +199,11 @@ Las pruebas cubren:
 docker compose up --build
 ```
 
-Levanta PostgreSQL (expuesto en el puerto **5433** del host) y el panel en http://localhost:8080. Las
-credenciales se pueden cambiar copiando `.env.example` como `.env`. Los recibos PDF y los logs de
-importación se guardan en volúmenes (`receipts` e `import-logs`), así que no se pierden al recrear el
-contenedor. En las próximas semanas se agregarán los servicios `tests`, `api` y `client`.
+Levanta PostgreSQL (expuesto en el puerto **5433** del host), el panel en http://localhost:8080 y la API
+en http://localhost:8081/swagger. Las credenciales, la clave JWT y la cuenta de Gmail se configuran
+copiando `.env.example` como `.env`. Los recibos PDF y los logs de importación se guardan en volúmenes
+(`receipts` e `import-logs`), así que no se pierden al recrear los contenedores. En las próximas semanas
+se agregarán los servicios `tests` y `client`.
 
 ## Convenciones
 

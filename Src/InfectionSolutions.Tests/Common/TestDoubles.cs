@@ -18,6 +18,8 @@ public sealed class FakeUnitOfWork : IUnitOfWork
 
     public bool Committed { get; private set; }
 
+    public bool RolledBack { get; private set; }
+
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         SaveCount++;
@@ -42,7 +44,11 @@ public sealed class FakeUnitOfWork : IUnitOfWork
             return Task.CompletedTask;
         }
 
-        public Task RollbackAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task RollbackAsync(CancellationToken cancellationToken = default)
+        {
+            _owner.RolledBack = true;
+            return Task.CompletedTask;
+        }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

@@ -27,7 +27,7 @@ public class DocumentGenerationTests
     [InlineData(SaleStatus.Cancelled)]
     public void Recibo_GeneraUnPdf(SaleStatus estado)
     {
-        var servicio = new ReceiptService(Substitute.For<ISaleRepository>(), Substitute.For<IReceiptStorage>(), Options.Create(new CompanyOptions()));
+        var servicio = new ReceiptService(Substitute.For<ISaleRepository>(), Substitute.For<IReceiptStorage>(), Options.Create(new CompanyOptions()), TestMapper.Instance);
 
         Assert.True(EsPdf(servicio.Generate(Venta(estado))));
     }
@@ -48,7 +48,7 @@ public class DocumentGenerationTests
         var almacen = Substitute.For<IReceiptStorage>();
         almacen.ReadAsync(default!, default).ReturnsForAnyArgs((byte[]?)null);
 
-        var servicio = new ReceiptService(ventas, almacen, Options.Create(new CompanyOptions()));
+        var servicio = new ReceiptService(ventas, almacen, Options.Create(new CompanyOptions()), TestMapper.Instance);
         var resultado = await servicio.GetAsync(venta.Id);
 
         Assert.True(resultado.IsSuccess);

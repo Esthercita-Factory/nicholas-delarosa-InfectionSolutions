@@ -1,8 +1,9 @@
-# Entorno (Semanas 1-2): base de datos + panel administrativo.
-# En las siguientes semanas se agregan los servicios tests, api y client.
+# Entorno (Semanas 1-3): base de datos + panel administrativo + API.
+# En las siguientes semanas se agregan los servicios tests y client.
 #
 #   docker compose up --build
-#   Panel: http://localhost:8080  (admin@infection.com / Admin123*)
+#   Panel:   http://localhost:8080          (admin@infection.com / Admin123*)
+#   API:     http://localhost:8081/swagger
 
 services:
   db:
@@ -44,6 +45,32 @@ services:
       # Recibos PDF y logs de importacion sobreviven a recrear el contenedor.
       - receipts:/app/wwwroot/recibos
       - import-logs:/app/App_Data/import-logs
+
+  api:
+    build:
+      context: .
+      dockerfile: Src/InfectionSolutions.Api/Dockerfile
+    container_name: infectionsolutions-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=${POSTGRES_DB:-infection_solutions};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
+      SeedAdmin__Email: ${ADMIN_EMAIL:-admin@infection.com}
+      SeedAdmin__Password: ${ADMIN_PASSWORD:-Admin123*}
+      # 32+ caracteres. El valor por defecto es solo para levantarlo en local: en un
+      # servidor define JWT_SIGNING_KEY en .env (copia .env.example).
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:-compose-local-no-usar-en-produccion-0123456789}
+      Email__Smtp__UserName: ${SMTP_USERNAME:-}
+      Email__Smtp__Password: ${SMTP_PASSWORD:-}
+      Cors__AllowedOrigins__0: ${CLIENT_ORIGIN:-http://localhost:4200}
+      Swagger__Enabled: "true"
+    ports:
+      - "8081:8080"
+    volumes:
+      # Mismo volumen que el panel: los recibos se ven desde ambos lados.
+      - receipts:/app/App_Data/recibos
 
 volumes:
   db-data:

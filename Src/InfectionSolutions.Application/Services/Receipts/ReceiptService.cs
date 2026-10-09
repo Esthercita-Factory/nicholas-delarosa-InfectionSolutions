@@ -1,7 +1,7 @@
+using AutoMapper;
 using InfectionSolutions.Application.Abstractions;
 using InfectionSolutions.Application.Common;
 using InfectionSolutions.Application.Dtos.Sales;
-using InfectionSolutions.Application.Services.Sales;
 using Microsoft.Extensions.Options;
 using QuestPDF.Fluent;
 
@@ -12,13 +12,15 @@ public sealed class ReceiptService : IReceiptService
     private readonly ISaleRepository _sales;
     private readonly IReceiptStorage _storage;
     private readonly CompanyOptions _company;
+    private readonly IMapper _mapper;
 
-    public ReceiptService(ISaleRepository sales, IReceiptStorage storage, IOptions<CompanyOptions> company)
+    public ReceiptService(ISaleRepository sales, IReceiptStorage storage, IOptions<CompanyOptions> company, IMapper mapper)
     {
         DocumentLibraries.EnsureConfigured();
         _sales = sales;
         _storage = storage;
         _company = company.Value;
+        _mapper = mapper;
     }
 
     /// <summary>Un archivo por venta: el numero es unico.</summary>
@@ -45,7 +47,7 @@ public sealed class ReceiptService : IReceiptService
         var contenido = await _storage.ReadAsync(nombre, cancellationToken);
         if (contenido is null)
         {
-            contenido = Generate(SaleMappings.ToResponse(sale));
+            contenido = Generate(_mapper.Map<SaleResponse>(sale));
             await _storage.SaveAsync(nombre, contenido, cancellationToken);
         }
 

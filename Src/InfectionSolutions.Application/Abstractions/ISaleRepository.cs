@@ -4,7 +4,8 @@ using InfectionSolutions.Domain.Enums;
 
 namespace InfectionSolutions.Application.Abstractions;
 
-public sealed record SaleFilter(string? Term, SaleStatus? Status);
+/// <param name="CustomerId">Solo las ventas de ese cliente (portal: "mis compras").</param>
+public sealed record SaleFilter(string? Term, SaleStatus? Status, Guid? CustomerId = null);
 
 public interface ISaleRepository
 {

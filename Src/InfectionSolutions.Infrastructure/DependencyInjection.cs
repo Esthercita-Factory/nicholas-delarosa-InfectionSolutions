@@ -1,7 +1,9 @@
 using InfectionSolutions.Application.Abstractions;
+using InfectionSolutions.Infrastructure.Email;
 using InfectionSolutions.Infrastructure.Identity;
 using InfectionSolutions.Infrastructure.Persistence;
 using InfectionSolutions.Infrastructure.Repositories;
+using InfectionSolutions.Infrastructure.Security;
 using InfectionSolutions.Infrastructure.Storage;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -48,7 +50,38 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<ISaleRepository, SaleRepository>();
         services.AddScoped<IDashboardQuery, DashboardQuery>();
 
+        services.AddScoped<IUserService, IdentityUserService>();
+
+        // Tokens JWT: solo la API los emite, pero registrarlo aqui deja el
+        // contenedor completo en ambos hosts. La API valida la clave al arrancar.
+        services.AddOptions<JwtOptions>().Bind(configuration.GetSection(JwtOptions.SectionName));
+        services.AddSingleton<ITokenService, JwtTokenService>();
+
+        services.AddEmail(configuration);
+
         return services;
+    }
+
+    /// <summary>
+    /// SMTP real si hay credenciales (Email:Smtp:UserName/Password, en user-secrets
+    /// o variables de entorno); si no, o con Email:Provider=Log, los correos van al log.
+    /// </summary>
+    private static void AddEmail(this IServiceCollection services, IConfiguration configuration)
+    {
+        var seccion = configuration.GetSection(EmailOptions.SectionName);
+        services.Configure<EmailOptions>(seccion);
+
+        var opciones = seccion.Get<EmailOptions>() ?? new EmailOptions();
+        var usarSmtp = string.Equals(opciones.Provider, "Smtp", StringComparison.OrdinalIgnoreCase) && opciones.SmtpConfigured;
+
+        if (usarSmtp)
+        {
+            services.AddScoped<IEmailSender, SmtpEmailSender>();
+        }
+        else
+        {
+            services.AddScoped<IEmailSender, LogEmailSender>();
+        }
     }
 
     /// <summary>Recibos PDF como archivos en una carpeta del host (el panel usa wwwroot/recibos).</summary>

@@ -16,6 +16,12 @@ public interface ICustomerRepository
 
     Task<Customer?> FindByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
+    /// <summary>El cliente vinculado a una cuenta del portal (rol Cliente).</summary>
+    Task<Customer?> FindByUserIdAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Rastreado. El documento ya viene normalizado.</summary>
+    Task<Customer?> FindByDocumentAsync(string document, CancellationToken cancellationToken = default);
+
     /// <summary>Rastreados, para actualizarlos en la carga masiva. Los documentos ya vienen normalizados.</summary>
     Task<IReadOnlyList<Customer>> FindByDocumentsAsync(IReadOnlyCollection<string> documents, CancellationToken cancellationToken = default);
 

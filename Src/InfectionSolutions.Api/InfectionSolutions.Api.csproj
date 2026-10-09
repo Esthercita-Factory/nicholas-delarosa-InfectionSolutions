@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>InfectionSolutions.Api</RootNamespace>
+    <UserSecretsId>8f3c2b1e-6a4d-4f7e-9c51-2d7b0e4a9f13</UserSecretsId>
+    <!-- Los comentarios /// de controladores y ViewModels aparecen en Swagger. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\InfectionSolutions.Application\InfectionSolutions.Application.csproj" />
+    <ProjectReference Include="..\InfectionSolutions.Infrastructure\InfectionSolutions.Infrastructure.csproj" />
+    <ProjectReference Include="..\InfectionSolutions.Domain\InfectionSolutions.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.12" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+</Project>

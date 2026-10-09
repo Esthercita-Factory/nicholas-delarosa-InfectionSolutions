@@ -1,3 +1,4 @@
+using AutoMapper;
 using InfectionSolutions.Application.Abstractions;
 using InfectionSolutions.Application.Common;
 using InfectionSolutions.Application.Dtos.Sales;
@@ -20,6 +21,7 @@ public sealed class SaleService : ISaleService
     private readonly IClock _clock;
     private readonly IReceiptService _receipts;
     private readonly ILogger<SaleService> _logger;
+    private readonly IMapper _mapper;
 
     public SaleService(
         ISaleRepository sales,
@@ -28,7 +30,8 @@ public sealed class SaleService : ISaleService
         IUnitOfWork unitOfWork,
         IClock clock,
         IReceiptService receipts,
-        ILogger<SaleService> logger)
+        ILogger<SaleService> logger,
+        IMapper mapper)
     {
         _sales = sales;
         _products = products;
@@ -37,22 +40,23 @@ public sealed class SaleService : ISaleService
         _clock = clock;
         _receipts = receipts;
         _logger = logger;
+        _mapper = mapper;
     }
 
     public async Task<PagedResponse<SaleListItemResponse>> ListAsync(SaleQuery query, CancellationToken cancellationToken = default)
     {
         var page = new PageRequest { Page = query.Page, PageSize = query.PageSize };
         var termino = string.IsNullOrWhiteSpace(query.Q) ? null : query.Q.Trim();
-        var result = await _sales.ListAsync(new SaleFilter(termino, query.Status), page, cancellationToken);
+        var result = await _sales.ListAsync(new SaleFilter(termino, query.Status, query.CustomerId), page, cancellationToken);
 
-        return PagedResponse<SaleListItemResponse>.From(result, page, SaleMappings.ToListItem);
+        return PagedResponse<SaleListItemResponse>.From(result, page, _mapper.Map<SaleListItemResponse>);
     }
 
     public async Task<IReadOnlyList<SaleListItemResponse>> ListAllAsync(SaleQuery query, CancellationToken cancellationToken = default)
     {
         var termino = string.IsNullOrWhiteSpace(query.Q) ? null : query.Q.Trim();
-        var sales = await _sales.ListAllAsync(new SaleFilter(termino, query.Status), cancellationToken);
-        return sales.Select(SaleMappings.ToListItem).ToList();
+        var sales = await _sales.ListAllAsync(new SaleFilter(termino, query.Status, query.CustomerId), cancellationToken);
+        return _mapper.Map<List<SaleListItemResponse>>(sales);
     }
 
     public async Task<Result<SaleResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -61,7 +65,7 @@ public sealed class SaleService : ISaleService
 
         return sale is null
             ? Result.Failure<SaleResponse>(Error.EntityNotFound("Venta", id))
-            : Result.Success(SaleMappings.ToResponse(sale));
+            : Result.Success(_mapper.Map<SaleResponse>(sale));
     }
 
     public async Task<Result<SaleResponse>> CreateAsync(SaleRequest request, string? userId, CancellationToken cancellationToken = default)
@@ -159,7 +163,7 @@ public sealed class SaleService : ISaleService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         await transaccion.CommitAsync(cancellationToken);
 
-        var respuesta = SaleMappings.ToResponse(sale);
+        var respuesta = _mapper.Map<SaleResponse>(sale);
         await GuardarReciboAsync(respuesta, cancellationToken);
 
         return Result.Success(respuesta);
@@ -190,7 +194,7 @@ public sealed class SaleService : ISaleService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         // El recibo se regenera para que diga ANULADA.
-        await GuardarReciboAsync(SaleMappings.ToResponse(sale), cancellationToken);
+        await GuardarReciboAsync(_mapper.Map<SaleResponse>(sale), cancellationToken);
 
         return Result.Success();
     }

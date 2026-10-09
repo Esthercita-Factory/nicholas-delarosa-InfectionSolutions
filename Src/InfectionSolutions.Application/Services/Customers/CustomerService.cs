@@ -1,3 +1,4 @@
+using AutoMapper;
 using InfectionSolutions.Application.Abstractions;
 using InfectionSolutions.Application.Common;
 using InfectionSolutions.Application.Dtos.Customers;
@@ -10,12 +11,14 @@ public sealed class CustomerService : ICustomerService
     private readonly ICustomerRepository _customers;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
+    private readonly IMapper _mapper;
 
-    public CustomerService(ICustomerRepository customers, IUnitOfWork unitOfWork, IClock clock)
+    public CustomerService(ICustomerRepository customers, IUnitOfWork unitOfWork, IClock clock, IMapper mapper)
     {
         _customers = customers;
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _mapper = mapper;
     }
 
     public async Task<PagedResponse<CustomerResponse>> ListAsync(CustomerQuery query, CancellationToken cancellationToken = default)
@@ -24,14 +27,14 @@ public sealed class CustomerService : ICustomerService
         var termino = string.IsNullOrWhiteSpace(query.Q) ? null : query.Q.Trim();
         var result = await _customers.ListAsync(new CustomerFilter(termino, query.Active), page, cancellationToken);
 
-        return PagedResponse<CustomerResponse>.From(result, page, ToResponse);
+        return PagedResponse<CustomerResponse>.From(result, page, _mapper.Map<CustomerResponse>);
     }
 
     public async Task<IReadOnlyList<CustomerResponse>> ListAllAsync(CustomerQuery query, CancellationToken cancellationToken = default)
     {
         var termino = string.IsNullOrWhiteSpace(query.Q) ? null : query.Q.Trim();
         var customers = await _customers.ListAllAsync(new CustomerFilter(termino, query.Active), cancellationToken);
-        return customers.Select(ToResponse).ToList();
+        return _mapper.Map<List<CustomerResponse>>(customers);
     }
 
     public async Task<Result<CustomerResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -40,18 +43,18 @@ public sealed class CustomerService : ICustomerService
 
         return customer is null
             ? Result.Failure<CustomerResponse>(Error.EntityNotFound("Cliente", id))
-            : Result.Success(ToResponse(customer));
+            : Result.Success(_mapper.Map<CustomerResponse>(customer));
     }
 
     public async Task<IReadOnlyList<CustomerOption>> GetOptionsAsync(CancellationToken cancellationToken = default)
     {
         var customers = await _customers.GetActiveAsync(cancellationToken);
-        return customers.Select(c => new CustomerOption(c.Id, c.Document, c.FullName)).ToList();
+        return _mapper.Map<List<CustomerOption>>(customers);
     }
 
     public async Task<Result<CustomerResponse>> CreateAsync(CustomerRequest request, CancellationToken cancellationToken = default)
     {
-        var error = Validar(request) ?? await ValidarDuplicadosAsync(request, null, cancellationToken);
+        var error = CustomerRules.Validate(request) ?? await ValidarDuplicadosAsync(request, null, cancellationToken);
         if (error is not null)
         {
             return Result.Failure<CustomerResponse>(error);
@@ -63,7 +66,7 @@ public sealed class CustomerService : ICustomerService
         await _customers.AddAsync(customer, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(ToResponse(customer));
+        return Result.Success(_mapper.Map<CustomerResponse>(customer));
     }
 
     public async Task<Result<CustomerResponse>> UpdateAsync(Guid id, CustomerRequest request, CancellationToken cancellationToken = default)
@@ -74,7 +77,7 @@ public sealed class CustomerService : ICustomerService
             return Result.Failure<CustomerResponse>(Error.EntityNotFound("Cliente", id));
         }
 
-        var error = Validar(request) ?? await ValidarDuplicadosAsync(request, id, cancellationToken);
+        var error = CustomerRules.Validate(request) ?? await ValidarDuplicadosAsync(request, id, cancellationToken);
         if (error is not null)
         {
             return Result.Failure<CustomerResponse>(error);
@@ -84,7 +87,7 @@ public sealed class CustomerService : ICustomerService
         customer.UpdatedAt = _clock.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(ToResponse(customer));
+        return Result.Success(_mapper.Map<CustomerResponse>(customer));
     }
 
     public async Task<Result> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
@@ -105,43 +108,6 @@ public sealed class CustomerService : ICustomerService
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
-    }
-
-    private static Error? Validar(CustomerRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Document))
-        {
-            return Error.Validation("El documento es obligatorio.", nameof(request.Document));
-        }
-
-        if (!FieldRules.IsValidDocument(FieldRules.NormalizeDocument(request.Document)))
-        {
-            return Error.Validation(
-                $"El documento debe tener entre {FieldRules.DocumentMinLength} y {FieldRules.DocumentMaxLength} letras o números.",
-                nameof(request.Document));
-        }
-
-        if (string.IsNullOrWhiteSpace(request.FullName))
-        {
-            return Error.Validation("El nombre es obligatorio.", nameof(request.FullName));
-        }
-
-        if (request.Age is < InputParser.MinAge or > InputParser.MaxAge)
-        {
-            return Error.Validation($"La edad debe estar entre {InputParser.MinAge} y {InputParser.MaxAge} años.", nameof(request.Age));
-        }
-
-        if (!FieldRules.IsValidEmail(request.Email))
-        {
-            return Error.Validation("El correo no tiene un formato válido.", nameof(request.Email));
-        }
-
-        if (!FieldRules.IsValidPhone(request.Phone))
-        {
-            return Error.Validation("El teléfono es obligatorio y solo admite números, espacios, guiones, paréntesis y + al inicio.", nameof(request.Phone));
-        }
-
-        return null;
     }
 
     /// <summary>
@@ -174,16 +140,4 @@ public sealed class CustomerService : ICustomerService
         customer.IsActive = request.IsActive;
     }
 
-    private static CustomerResponse ToResponse(Customer customer) => new(
-        customer.Id,
-        customer.Document,
-        customer.FullName,
-        customer.Age,
-        customer.Email,
-        customer.Phone,
-        customer.Address,
-        customer.IsActive,
-        customer.UserId is not null,
-        customer.CreatedAt,
-        customer.UpdatedAt);
 }

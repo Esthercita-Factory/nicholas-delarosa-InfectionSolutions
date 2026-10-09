@@ -13,7 +13,7 @@ public class ProductServiceTests
 
     public ProductServiceTests()
     {
-        _service = new ProductService(_products, _unitOfWork, _clock);
+        _service = new ProductService(_products, _unitOfWork, _clock, TestMapper.Instance);
     }
 
     private static ProductRequest Solicitud(string sku = " cem-50 ", decimal precio = 32_000m) => new()

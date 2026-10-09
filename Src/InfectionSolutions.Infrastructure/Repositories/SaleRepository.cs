@@ -82,6 +82,11 @@ public sealed class SaleRepository : ISaleRepository
                 || EF.Functions.ILike(s.Customer.Document, patron));
         }
 
+        if (filter.CustomerId is { } clienteId)
+        {
+            consulta = consulta.Where(s => s.CustomerId == clienteId);
+        }
+
         return filter.Status.HasValue ? consulta.Where(s => s.Status == filter.Status.Value) : consulta;
     }
 }

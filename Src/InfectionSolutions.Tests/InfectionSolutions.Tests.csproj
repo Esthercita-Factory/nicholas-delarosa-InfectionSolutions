@@ -24,7 +24,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\InfectionSolutions.Api\InfectionSolutions.Api.csproj" />
     <ProjectReference Include="..\InfectionSolutions.Application\InfectionSolutions.Application.csproj" />
+    <ProjectReference Include="..\InfectionSolutions.Infrastructure\InfectionSolutions.Infrastructure.csproj" />
     <ProjectReference Include="..\InfectionSolutions.Domain\InfectionSolutions.Domain.csproj" />
   </ItemGroup>
 

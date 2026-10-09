@@ -34,6 +34,12 @@ public sealed class CustomerRepository : ICustomerRepository
     public Task<Customer?> FindByIdAsync(Guid id, CancellationToken cancellationToken = default)
         => _db.Customers.FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
+    public Task<Customer?> FindByUserIdAsync(string userId, CancellationToken cancellationToken = default)
+        => _db.Customers.FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
+
+    public Task<Customer?> FindByDocumentAsync(string document, CancellationToken cancellationToken = default)
+        => _db.Customers.FirstOrDefaultAsync(c => c.Document == document, cancellationToken);
+
     public async Task<IReadOnlyList<Customer>> FindByDocumentsAsync(IReadOnlyCollection<string> documents, CancellationToken cancellationToken = default)
     {
         if (documents.Count == 0)

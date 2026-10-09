@@ -23,7 +23,7 @@ public class SaleServiceTests
 
     public SaleServiceTests()
     {
-        _service = new SaleService(_sales, _products, _customers, _unitOfWork, _clock, _receipts, NullLogger<SaleService>.Instance);
+        _service = new SaleService(_sales, _products, _customers, _unitOfWork, _clock, _receipts, NullLogger<SaleService>.Instance, TestMapper.Instance);
 
         _customers.FindByIdAsync(_cliente.Id, Arg.Any<CancellationToken>()).Returns(_cliente);
         _products.FindByIdsForUpdateAsync(Arg.Any<IReadOnlyCollection<Guid>>(), Arg.Any<CancellationToken>())

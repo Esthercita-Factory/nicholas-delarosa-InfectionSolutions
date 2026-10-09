@@ -1,3 +1,4 @@
+using AutoMapper;
 using InfectionSolutions.Application.Abstractions;
 using InfectionSolutions.Application.Common;
 using InfectionSolutions.Application.Dtos.Products;
@@ -6,20 +7,22 @@ using InfectionSolutions.Domain.Entities;
 namespace InfectionSolutions.Application.Services.Products;
 
 /// <summary>
-/// Unico punto donde la entidad Product se convierte en DTO y al reves:
-/// fuera de Application/Infrastructure la entidad no circula.
+/// La entidad Product no sale de Application/Infrastructure: hacia afuera se
+/// convierte en DTO con AutoMapper (Mappings/ProductProfile).
 /// </summary>
 public sealed class ProductService : IProductService
 {
     private readonly IProductRepository _products;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IClock _clock;
+    private readonly IMapper _mapper;
 
-    public ProductService(IProductRepository products, IUnitOfWork unitOfWork, IClock clock)
+    public ProductService(IProductRepository products, IUnitOfWork unitOfWork, IClock clock, IMapper mapper)
     {
         _products = products;
         _unitOfWork = unitOfWork;
         _clock = clock;
+        _mapper = mapper;
     }
 
     public async Task<PagedResponse<ProductResponse>> ListAsync(ProductQuery query, CancellationToken cancellationToken = default)
@@ -28,14 +31,14 @@ public sealed class ProductService : IProductService
         var filtro = new ProductFilter(LimpiarOpcional(query.Q), LimpiarOpcional(query.Category), query.Active);
         var result = await _products.ListAsync(filtro, page, cancellationToken);
 
-        return PagedResponse<ProductResponse>.From(result, page, ToResponse);
+        return PagedResponse<ProductResponse>.From(result, page, _mapper.Map<ProductResponse>);
     }
 
     public async Task<IReadOnlyList<ProductResponse>> ListAllAsync(ProductQuery query, CancellationToken cancellationToken = default)
     {
         var filtro = new ProductFilter(LimpiarOpcional(query.Q), LimpiarOpcional(query.Category), query.Active);
         var products = await _products.ListAllAsync(filtro, cancellationToken);
-        return products.Select(ToResponse).ToList();
+        return _mapper.Map<List<ProductResponse>>(products);
     }
 
     public async Task<Result<ProductResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -44,7 +47,7 @@ public sealed class ProductService : IProductService
 
         return product is null
             ? Result.Failure<ProductResponse>(Error.EntityNotFound("Producto", id))
-            : Result.Success(ToResponse(product));
+            : Result.Success(_mapper.Map<ProductResponse>(product));
     }
 
     public Task<IReadOnlyList<string>> GetCategoriesAsync(CancellationToken cancellationToken = default)
@@ -53,9 +56,7 @@ public sealed class ProductService : IProductService
     public async Task<IReadOnlyList<ProductOption>> GetOptionsAsync(CancellationToken cancellationToken = default)
     {
         var products = await _products.GetActiveAsync(cancellationToken);
-        return products
-            .Select(p => new ProductOption(p.Id, p.Sku, p.Name, p.Unit, p.Price, p.Stock))
-            .ToList();
+        return _mapper.Map<List<ProductOption>>(products);
     }
 
     public async Task<Result<ProductResponse>> CreateAsync(ProductRequest request, CancellationToken cancellationToken = default)
@@ -83,7 +84,7 @@ public sealed class ProductService : IProductService
         await _products.AddAsync(product, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(ToResponse(product));
+        return Result.Success(_mapper.Map<ProductResponse>(product));
     }
 
     public async Task<Result<ProductResponse>> UpdateAsync(Guid id, ProductRequest request, CancellationToken cancellationToken = default)
@@ -112,7 +113,7 @@ public sealed class ProductService : IProductService
         product.UpdatedAt = _clock.UtcNow;
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return Result.Success(ToResponse(product));
+        return Result.Success(_mapper.Map<ProductResponse>(product));
     }
 
     public async Task<Result> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
@@ -192,18 +193,6 @@ public sealed class ProductService : IProductService
         product.IsActive = request.IsActive;
     }
 
-    private static ProductResponse ToResponse(Product product) => new(
-        product.Id,
-        product.Sku,
-        product.Name,
-        product.Description,
-        product.Category,
-        product.Unit,
-        product.Price,
-        product.Stock,
-        product.IsActive,
-        product.CreatedAt,
-        product.UpdatedAt);
 
     private static Error SkuDuplicado() => Error.Conflict("Ya existe un producto con ese código.", nameof(ProductRequest.Sku));
 
