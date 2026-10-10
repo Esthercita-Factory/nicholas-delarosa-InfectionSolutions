@@ -32,14 +32,17 @@ navegador ve un solo origen y no hace falta CORS.
 
 Requisito: Docker Desktop (o Docker Engine con el plugin compose).
 
+Los dos repositorios van uno al lado del otro: el compose busca el portal en `../InfectionSolutions.Client`
+(se puede cambiar con `CLIENT_BUILD_CONTEXT` en `.env`).
+
 ```bash
-git clone https://github.com/Esthercita-Factory/nicholas-delarosa-InfectionSolutions.git
-cd nicholas-delarosa-InfectionSolutions
+git clone https://github.com/Esthercita-Factory/nicholas-delarosa-InfectionSolutions.git InfectionSolutions
+git clone https://github.com/Esthercita-Factory/nicholas-delarosa-InfectionSolutions.Client.git InfectionSolutions.Client
+cd InfectionSolutions
 docker compose up --build
 ```
 
-Construye las cuatro imágenes (el portal, directamente desde su repositorio de GitHub), corre las
-pruebas y, si pasan, levanta todo:
+Construye las cuatro imágenes, corre las pruebas y, si pasan, levanta todo:
 
 - Panel: http://localhost:8080 (`admin@infection.com` / `Admin123*`)
 - Swagger: http://localhost:8081/swagger
@@ -67,8 +70,9 @@ En el servidor solo se puede usar Docker con `sudo` (`sudo docker ...`) y los pu
 
 ```bash
 ssh esthercita
-git clone https://github.com/Esthercita-Factory/nicholas-delarosa-InfectionSolutions.git ~/infectionsolutions
-cd ~/infectionsolutions
+git clone https://github.com/Esthercita-Factory/nicholas-delarosa-InfectionSolutions.git ~/InfectionSolutions
+git clone https://github.com/Esthercita-Factory/nicholas-delarosa-InfectionSolutions.Client.git ~/InfectionSolutions.Client
+cd ~/InfectionSolutions
 cp .env.example .env
 nano .env        # contraseñas reales (ver abajo); Ctrl+O, Enter, Ctrl+X para guardar
 ```
@@ -100,7 +104,7 @@ Queda disponible en:
 Después de un push (y de que GitHub Actions termine en verde):
 
 ```bash
-cd ~/infectionsolutions
+cd ~/InfectionSolutions
 git pull
 sudo docker compose pull
 sudo docker compose up -d

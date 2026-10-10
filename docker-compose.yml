@@ -101,9 +101,9 @@ services:
   client:
     image: ${CLIENT_IMAGE:-ghcr.io/esthercita-factory/nicholas-delarosa-infectionsolutions.client:latest}
     build:
-      # El portal vive en su propio repositorio. Por defecto se construye desde GitHub;
-      # con CLIENT_BUILD_CONTEXT=../InfectionSolutions.Client se usa la copia local.
-      context: ${CLIENT_BUILD_CONTEXT:-https://github.com/Esthercita-Factory/nicholas-delarosa-InfectionSolutions.Client.git#main}
+      # El portal vive en su propio repositorio, clonado al lado de este
+      # (../InfectionSolutions.Client). Si no se va a construir, basta con la imagen de GHCR.
+      context: ${CLIENT_BUILD_CONTEXT:-../InfectionSolutions.Client}
     restart: unless-stopped
     depends_on:
       tests:

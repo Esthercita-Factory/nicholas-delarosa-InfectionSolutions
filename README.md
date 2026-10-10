@@ -227,8 +227,9 @@ Un solo comando, sin abrir ningún IDE:
 | API (Swagger) | http://localhost:8081/swagger | `...-infectionsolutions-api` |
 | Portal de clientes | http://localhost:8082 | `...-infectionsolutions.client` |
 
-Backend y frontend son imágenes separadas. El portal se construye directamente desde
-[su repositorio](https://github.com/Esthercita-Factory/nicholas-delarosa-InfectionSolutions.Client) y su
+Backend y frontend son imágenes separadas. El portal se construye desde
+[su repositorio](https://github.com/Esthercita-Factory/nicholas-delarosa-InfectionSolutions.Client), clonado al
+lado de este (`../InfectionSolutions.Client`), y su
 Nginx reenvía `/api` a la API, así que el navegador ve un solo origen. La base de datos no se publica fuera
 de Docker. Puertos y secretos (contraseña de la base, clave JWT, Gmail) se configuran copiando
 `.env.example` como `.env`. Base, recibos, logs de importación y sesiones del panel viven en volúmenes.
