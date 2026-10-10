@@ -209,6 +209,11 @@ Las pruebas cubren:
 
 ## Ejecución con Docker (Semana 5)
 
+En producción:
+
+- Portal de clientes: https://infectionsolutions.clandev.com
+- API (Swagger): https://services.infectionsolutions.clandev.com/swagger
+
 ```bash
 docker compose up --build
 ```

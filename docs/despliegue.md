@@ -95,9 +95,140 @@ sudo docker compose ps        # estado de los contenedores
 
 Queda disponible en:
 
+- Portal de clientes: https://infectionsolutions.clandev.com
+- API (Swagger): https://services.infectionsolutions.clandev.com/swagger
 - Panel: `http://62.238.59.126:8080`
-- Swagger: `http://62.238.59.126:8081/swagger`
-- Portal de clientes: `http://62.238.59.126:8082`
+
+### Dominios (Nginx del servidor)
+
+| Dominio | Servicio | Contenedor |
+|---|---|---|
+| https://infectionsolutions.clandev.com | Portal de clientes | `client` (127.0.0.1:8082) |
+| https://services.infectionsolutions.clandev.com | API + Swagger | `api` (127.0.0.1:8081) |
+
+**Cómo llega una visita al contenedor:**
+
+```
+navegador ──▶ Cloudflare (solo DNS) ──▶ 62.238.59.126:443 ──▶ Nginx del servidor ──▶ 127.0.0.1:8082 ──▶ client
+                                                                  (según el dominio)    127.0.0.1:8081 ──▶ api
+```
+
+El TL crea los registros DNS en Cloudflare: los dos dominios apuntan a la IP del servidor en modo
+**solo DNS** (nube gris). Ese modo es necesario para que certbot pueda validar el dominio. Lo demás lo hace
+cada estudiante en el servidor.
+
+#### Permisos en el servidor
+
+`sudo -l` y `groups` muestran lo que se puede hacer:
+
+- El grupo `deployers` puede escribir en `/etc/nginx/sites-available` y `/etc/nginx/sites-enabled`.
+  Esos archivos se crean **sin `sudo`**: `sudo tee ...` responde *"I'm afraid I can't do that"*.
+- Con `sudo` solo se permite `nginx -t`, `systemctl reload|restart|start nginx`, `certbot` y los comandos de
+  `docker`.
+- `conf.d` es solo de root: no sirve.
+
+#### Paso 1: confirmar que los contenedores responden en el servidor
+
+```bash
+cd ~/InfectionSolutions
+sudo docker compose ps
+curl -s -o /dev/null -w "portal %{http_code}\n" http://127.0.0.1:8082/
+curl -s -o /dev/null -w "api %{http_code}\n"    http://127.0.0.1:8081/swagger/index.html
+```
+
+Las dos deben responder 200. Si la API da 404, falta `SWAGGER_ENABLED=true` en `.env`.
+
+#### Paso 2: crear el sitio de Nginx (sin `sudo`)
+
+```bash
+tee /etc/nginx/sites-available/infectionsolutions > /dev/null <<'EOF'
+# Portal de clientes (contenedor client, puerto 8082)
+server {
+    listen 80;
+    server_name infectionsolutions.clandev.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8082;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# API REST + Swagger (contenedor api, puerto 8081)
+server {
+    listen 80;
+    server_name services.infectionsolutions.clandev.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+EOF
+ln -s /etc/nginx/sites-available/infectionsolutions /etc/nginx/sites-enabled/
+```
+
+El `'EOF'` va entre comillas para que la terminal no reemplace `$host`, `$scheme`, etc.: esas variables
+son de Nginx.
+
+#### Paso 3: validar y recargar Nginx
+
+```bash
+sudo nginx -t                    # debe decir "syntax is ok" y "test is successful"
+sudo systemctl reload nginx      # solo si el paso anterior salió bien
+```
+
+Ese Nginx atiende a todos los proyectos del servidor: si `nginx -t` falla, **no se recarga**. Hay que
+corregir el archivo o borrarlo. Si aparece `conflicting server name`, otro sitio usa el mismo dominio.
+
+En este punto ya funciona por `http://`.
+
+#### Paso 4: certificado HTTPS
+
+```bash
+sudo certbot --nginx -d infectionsolutions.clandev.com -d services.infectionsolutions.clandev.com
+```
+
+Certbot obtiene un certificado de Let's Encrypt para los dos dominios y agrega el bloque `listen 443 ssl` al
+mismo archivo, junto con la redirección de HTTP a HTTPS. También deja programada la renovación automática.
+Los certificados quedan en `/etc/letsencrypt/live/infectionsolutions.clandev.com/` y vencen cada 90 días,
+pero se renuevan solos.
+
+#### Paso 5: verificar desde afuera
+
+```bash
+curl -I https://infectionsolutions.clandev.com                    # 200
+curl -I http://infectionsolutions.clandev.com                     # 301 hacia https
+curl -I https://infectionsolutions.clandev.com/api/my/sales       # 401: el portal llega a la API
+curl -I https://services.infectionsolutions.clandev.com/swagger/index.html   # 200
+```
+
+El portal llama a `/api` en su mismo dominio (su Nginx interno lo pasa al contenedor `api`), así que no
+necesita CORS ni cambios en `.env`.
+
+#### Opcional: cerrar los puertos directos
+
+Con los dominios activos, los puertos 8081 y 8082 pueden quedar solo para el servidor. Así la única
+entrada es por HTTPS. En `.env`:
+
+```
+API_PORT=127.0.0.1:8081
+CLIENT_PORT=127.0.0.1:8082
+```
+
+Después: `sudo docker compose up -d`. Nginx sigue llegando porque está en el mismo servidor.
+
+#### Cuidados (servidor compartido)
+
+- Todos los `deployers` pueden escribir en `sites-available` y `sites-enabled`. Por eso hay que dejar el
+  archivo solo editable por uno mismo: `chmod 644 /etc/nginx/sites-available/infectionsolutions`.
+- Si el sitio deja de responder o muestra algo ajeno, revisar que el archivo siga ahí y que `sudo nginx -t`
+  no muestre `conflicting server name`. La configuración de este documento sirve para restaurarlo.
 
 ### Actualizar a la última versión
 
@@ -130,4 +261,5 @@ sudo docker compose down                 # detener todo (los datos se conservan)
 | `pull access denied` / `denied` al hacer pull | La imagen quedó privada en GHCR: cambiar la visibilidad a pública. |
 | `port is already allocated` | Otro proyecto usa ese puerto: cambiar `ADMIN_PORT`, `API_PORT` o `CLIENT_PORT` en `.env`. |
 | La página no abre desde el navegador | El firewall del servidor no deja pasar el puerto: pedirle al TL que lo abra. |
+| `502 Bad Gateway` en el dominio | Nginx no alcanza el contenedor: `sudo docker compose ps` y revisar que el puerto del `.env` coincida con el de `proxy_pass`. |
 | La API no arranca: `Jwt:SigningKey` | Falta `JWT_SIGNING_KEY` en `.env` o tiene menos de 32 caracteres. |
