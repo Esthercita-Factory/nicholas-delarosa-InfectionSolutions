@@ -99,6 +99,42 @@ public static class EmailTemplates
         return new EmailContent(asunto, Plantilla(asunto, cuerpo, company), texto);
     }
 
+    /// <summary>Minutos que vive el enlace (el token de Identity se configura igual en Infrastructure).</summary>
+    public const int PasswordResetMinutes = 60;
+
+    public static EmailContent PasswordReset(string fullName, string resetLink, CompanyOptions company)
+    {
+        var asunto = $"Recupera tu contraseña de {company.Name}";
+
+        var cuerpo = $"""
+            <p style="margin:0 0 16px;font-size:16px;">Hola {Html(PrimerNombre(fullName))},</p>
+            <p style="margin:0 0 20px;">Recibimos una solicitud para cambiar la contraseña de tu cuenta. Elige una nueva con este botón:</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
+              <tr><td style="background:{Grafito};border-radius:8px;">
+                <a href="{Html(resetLink)}" style="display:inline-block;padding:12px 22px;color:#FFFFFF;font-weight:700;text-decoration:none;">Cambiar mi contraseña</a>
+              </td></tr>
+            </table>
+            <p style="margin:0 0 16px;color:{Acero};font-size:13px;">El enlace sirve una sola vez y vence en {PasswordResetMinutes} minutos.
+            Si el botón no abre, copia esta dirección en el navegador:<br><span style="word-break:break-all;">{Html(resetLink)}</span></p>
+            <p style="margin:0;color:{Acero};font-size:13px;">Si no pediste el cambio, ignora este correo: tu contraseña sigue igual.</p>
+            """;
+
+        var texto = $"""
+            Hola {PrimerNombre(fullName)},
+
+            Recibimos una solicitud para cambiar la contraseña de tu cuenta. Elige una nueva en este enlace
+            (sirve una sola vez y vence en {PasswordResetMinutes} minutos):
+
+            {resetLink}
+
+            Si no pediste el cambio, ignora este correo: tu contraseña sigue igual.
+
+            {Firma(company)}
+            """;
+
+        return new EmailContent(asunto, Plantilla(asunto, cuerpo, company), texto);
+    }
+
     private static string Plantilla(string titulo, string cuerpo, CompanyOptions company) => $"""
         <!doctype html>
         <html lang="es">

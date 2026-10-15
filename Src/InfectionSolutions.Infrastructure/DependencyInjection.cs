@@ -42,6 +42,10 @@ public static class InfrastructureServiceCollectionExtensions
             .AddDefaultTokenProviders()
             .AddErrorDescriber<SpanishIdentityErrorDescriber>();
 
+        // El enlace de "olvide mi contraseña" vence en una hora (por defecto Identity da un dia).
+        services.Configure<DataProtectionTokenProviderOptions>(options =>
+            options.TokenLifespan = TimeSpan.FromMinutes(Application.Services.Notifications.EmailTemplates.PasswordResetMinutes));
+
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 

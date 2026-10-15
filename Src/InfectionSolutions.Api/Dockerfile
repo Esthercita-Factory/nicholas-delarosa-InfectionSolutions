@@ -26,7 +26,9 @@ COPY --from=build /app/publish .
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libgssapi-krb5-2 \
     && rm -rf /var/lib/apt/lists/*
-# Carpeta que la API escribe en tiempo de ejecucion: recibos PDF.
-RUN mkdir -p /app/App_Data/recibos && chown -R $APP_UID /app/App_Data
+# Carpetas que la API escribe en tiempo de ejecucion: recibos PDF y llaves de Data Protection
+# (enlaces de "olvide mi contraseña" e inicio con Google/GitHub). Con dueño $APP_UID para que
+# los volumenes de docker-compose hereden el permiso.
+RUN mkdir -p /app/App_Data/recibos /app/App_Data/keys && chown -R $APP_UID /app/App_Data
 USER $APP_UID
 ENTRYPOINT ["dotnet", "InfectionSolutions.Api.dll"]

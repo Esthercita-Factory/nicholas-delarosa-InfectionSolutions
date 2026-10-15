@@ -230,6 +230,83 @@ Después: `sudo docker compose up -d`. Nginx sigue llegando porque está en el m
 - Si el sitio deja de responder o muestra algo ajeno, revisar que el archivo siga ahí y que `sudo nginx -t`
   no muestre `conflicting server name`. La configuración de este documento sirve para restaurarlo.
 
+### Recuperar contraseña e inicio con Google y GitHub
+
+En el `.env` del servidor:
+
+```
+PORTAL_URL=https://infectionsolutions.clandev.com
+SMTP_USERNAME=i.s.infectionsolutions@gmail.com
+SMTP_PASSWORD=<contraseña de aplicación>
+GOOGLE_CLIENT_ID=<…>.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=<…>
+GITHUB_CLIENT_ID=<…>
+GITHUB_CLIENT_SECRET=<…>
+```
+
+- `PORTAL_URL` es la dirección pública del portal. Con ella se arman los enlaces de "olvidé mi contraseña" y
+  la vuelta de Google y GitHub; si quedara en `http://localhost:8082`, los enlaces de los correos no
+  servirían fuera del servidor.
+- Un proveedor sin credenciales no muestra su botón. El resto del portal funciona igual.
+- La API guarda sus llaves de cifrado en el volumen `api-keys`: los enlaces ya enviados siguen sirviendo
+  aunque se recree el contenedor.
+
+#### Crear la app de Google
+
+1. Entra a https://console.cloud.google.com/ y crea un proyecto (por ejemplo `InfectionSolutions`).
+2. Menú ☰ → **APIs y servicios → Pantalla de consentimiento de OAuth** (o **Google Auth Platform**) →
+   *Comenzar*:
+   - Nombre de la app: `InfectionSolutions`, correo de asistencia y correo de contacto.
+   - Público: **Externo**.
+3. En **Público**, mientras la app está "En prueba" solo pueden entrar los correos agregados en *Usuarios de
+   prueba*. Para que entre cualquier persona, pulsa **Publicar app**. Con los permisos básicos
+   (`openid`, `email`, `profile`) no hace falta verificación de Google.
+4. **Clientes → Crear cliente**:
+   - Tipo: **Aplicación web**. Nombre: `InfectionSolutions portal`.
+   - **URIs de redireccionamiento autorizados** (todas las que vayas a usar):
+     - `https://infectionsolutions.clandev.com/api/auth/external/google/callback` (servidor)
+     - `http://localhost:8082/api/auth/external/google/callback` (Docker en tu PC)
+     - `http://localhost:5120/api/auth/external/google/callback` (Rider + `npm start`)
+5. Copia el **ID de cliente** y el **Secreto del cliente**.
+
+#### Crear la app de GitHub
+
+GitHub solo admite **una** URL de retorno por app, así que se crea una para el servidor y otra para
+desarrollo.
+
+1. GitHub → foto de perfil → **Settings → Developer settings → OAuth Apps → New OAuth App**. Si quieres que
+   sea de la organización: *Settings* de Esthercita-Factory → *Developer settings*.
+2. Para el servidor:
+   - Application name: `InfectionSolutions`
+   - Homepage URL: `https://infectionsolutions.clandev.com`
+   - Authorization callback URL: `https://infectionsolutions.clandev.com/api/auth/external/github/callback`
+3. **Register application** → copia el **Client ID** → **Generate a new client secret** y cópialo (solo se
+   muestra una vez).
+4. Repite con otra app para tu PC, por ejemplo `InfectionSolutions (local)`, con la callback
+   `http://localhost:8082/api/auth/external/github/callback` (Docker) o
+   `http://localhost:5120/api/auth/external/github/callback` (Rider).
+
+#### Dónde van las claves
+
+| Dónde corre | Dónde se ponen |
+|---|---|
+| Servidor | `.env` del servidor (arriba). |
+| Docker en tu PC | Tu `.env` local, con `PORTAL_URL=http://localhost:8082` y las credenciales de las apps de desarrollo. |
+| Rider (`dotnet run`) + `npm start` | `user-secrets` de la API (ver abajo). `Portal:BaseUrl` ya es `http://localhost:4200`. |
+
+```bash
+dotnet user-secrets set "Authentication:Google:ClientId" "<…>" --project Src/InfectionSolutions.Api
+dotnet user-secrets set "Authentication:Google:ClientSecret" "<…>" --project Src/InfectionSolutions.Api
+dotnet user-secrets set "Authentication:GitHub:ClientId" "<…>" --project Src/InfectionSolutions.Api
+dotnet user-secrets set "Authentication:GitHub:ClientSecret" "<…>" --project Src/InfectionSolutions.Api
+```
+
+Para que el panel envíe el correo de recuperación a los administradores al correrlo desde Rider, también
+necesita la cuenta de Gmail en **sus** user-secrets (`Email:Smtp:UserName` y `Email:Smtp:Password` con
+`--project Src/InfectionSolutions.Admin`). En Docker la toma del mismo `.env`.
+
+El Nginx del servidor no cambia: las vueltas de Google y GitHub entran por `/api` del dominio del portal.
+
 ### Actualizar a la última versión
 
 Después de un push (y de que GitHub Actions termine en verde):
@@ -261,5 +338,7 @@ sudo docker compose down                 # detener todo (los datos se conservan)
 | `pull access denied` / `denied` al hacer pull | La imagen quedó privada en GHCR: cambiar la visibilidad a pública. |
 | `port is already allocated` | Otro proyecto usa ese puerto: cambiar `ADMIN_PORT`, `API_PORT` o `CLIENT_PORT` en `.env`. |
 | La página no abre desde el navegador | El firewall del servidor no deja pasar el puerto: pedirle al TL que lo abra. |
+| Google responde `redirect_uri_mismatch` | La URL de retorno no está registrada tal cual en Google (revisar `https`, dominio y `/api/auth/external/google/callback`). |
+| El enlace del correo apunta a `localhost` | Falta `PORTAL_URL` en el `.env` del servidor. |
 | `502 Bad Gateway` en el dominio | Nginx no alcanza el contenedor: `sudo docker compose ps` y revisar que el puerto del `.env` coincida con el de `proxy_pass`. |
 | La API no arranca: `Jwt:SigningKey` | Falta `JWT_SIGNING_KEY` en `.env` o tiene menos de 32 caracteres. |

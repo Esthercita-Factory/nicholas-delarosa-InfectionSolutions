@@ -67,11 +67,21 @@ services:
       Email__Smtp__Password: ${SMTP_PASSWORD:-}
       Cors__AllowedOrigins__0: ${CLIENT_ORIGIN:-http://localhost:4200}
       Swagger__Enabled: ${SWAGGER_ENABLED:-true}
+      # Direccion publica del portal: los enlaces de los correos y la vuelta de Google/GitHub.
+      Portal__BaseUrl: ${PORTAL_URL:-http://localhost:8082}
+      # Inicio de sesion con Google y GitHub: vacios = boton oculto (ver docs/despliegue.md).
+      Authentication__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      Authentication__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      Authentication__GitHub__ClientId: ${GITHUB_CLIENT_ID:-}
+      Authentication__GitHub__ClientSecret: ${GITHUB_CLIENT_SECRET:-}
     ports:
       - "${API_PORT:-8081}:8080"
     volumes:
       # Mismo volumen que el panel: un recibo generado en un lado se ve en el otro.
       - receipts:/app/App_Data/recibos
+      # Llaves de Data Protection: sin esto, recrear el contenedor invalida los enlaces de
+      # recuperacion de contraseña ya enviados.
+      - api-keys:/app/App_Data/keys
 
   admin:
     image: ${ADMIN_IMAGE:-ghcr.io/esthercita-factory/nicholas-delarosa-infectionsolutions-admin:latest}
@@ -90,6 +100,9 @@ services:
       SeedAdmin__Password: ${ADMIN_PASSWORD:-Admin123*}
       # Datos de demostracion (12 productos, 12 clientes y ventas) solo si la base esta vacia.
       SeedDemoData: ${SEED_DEMO_DATA:-true}
+      # Correo del "olvide mi contraseña" de los administradores.
+      Email__Smtp__UserName: ${SMTP_USERNAME:-}
+      Email__Smtp__Password: ${SMTP_PASSWORD:-}
     ports:
       - "${ADMIN_PORT:-8080}:8080"
     volumes:
@@ -121,3 +134,4 @@ volumes:
   receipts:
   import-logs:
   admin-keys:
+  api-keys:

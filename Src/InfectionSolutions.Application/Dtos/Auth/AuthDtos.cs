@@ -29,7 +29,36 @@ public sealed record RegisterRequest
     public string ConfirmPassword { get; init; } = string.Empty;
 }
 
-/// <param name="Customer">La ficha de cliente vinculada; null para administradores.</param>
+/// <summary>Cambio de contraseña con el token que llego por correo.</summary>
+public sealed record ResetPasswordRequest
+{
+    public string Email { get; init; } = string.Empty;
+
+    public string Token { get; init; } = string.Empty;
+
+    public string Password { get; init; } = string.Empty;
+
+    public string ConfirmPassword { get; init; } = string.Empty;
+}
+
+/// <summary>
+/// Datos que faltan para crear la ficha de cliente de una cuenta creada con Google o
+/// GitHub (el proveedor solo da nombre y correo; el correo sale de la cuenta).
+/// </summary>
+public sealed record CompleteProfileRequest
+{
+    public string Document { get; init; } = string.Empty;
+
+    public string FullName { get; init; } = string.Empty;
+
+    public int Age { get; init; }
+
+    public string Phone { get; init; } = string.Empty;
+
+    public string? Address { get; init; }
+}
+
+/// <param name="Customer">La ficha de cliente vinculada; null para administradores y para cuentas de Google/GitHub que aun no completan sus datos.</param>
 public sealed record UserProfile(
     string Id,
     string Email,

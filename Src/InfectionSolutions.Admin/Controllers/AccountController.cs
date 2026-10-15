@@ -1,5 +1,7 @@
 using InfectionSolutions.Admin.Common;
 using InfectionSolutions.Admin.ViewModels.Account;
+using InfectionSolutions.Application.Dtos.Auth;
+using InfectionSolutions.Application.Services.Auth;
 using InfectionSolutions.Domain.Identity;
 using InfectionSolutions.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authorization;
@@ -14,15 +16,18 @@ public class AccountController : Controller
 
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IAuthService _auth;
     private readonly ILogger<AccountController> _logger;
 
     public AccountController(
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
+        IAuthService auth,
         ILogger<AccountController> logger)
     {
         _signInManager = signInManager;
         _userManager = userManager;
+        _auth = auth;
         _logger = logger;
     }
 
@@ -107,6 +112,75 @@ public class AccountController : Controller
         }
 
         return View();
+    }
+
+    [AllowAnonymous]
+    public IActionResult ForgotPassword()
+    {
+        return View(new ForgotPasswordViewModel());
+    }
+
+    /// <summary>
+    /// Envia el enlace solo si el correo es de un administrador, pero responde igual en todos
+    /// los casos: la pantalla no revela que correos tienen cuenta.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel modelo, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(modelo);
+        }
+
+        var pagina = Url.Action(nameof(ResetPassword), "Account", null, Request.Scheme)!;
+        await _auth.RequestPasswordResetAsync(modelo.Email, pagina, ApplicationRoles.Administrator, cancellationToken);
+
+        TempData[TempDataKeys.Mensaje] =
+            $"Si {modelo.Email.Trim()} es la cuenta de un administrador, te enviamos un enlace para cambiar la contraseña. Vence en una hora.";
+        return RedirectToAction(nameof(Login));
+    }
+
+    [AllowAnonymous]
+    public IActionResult ResetPassword(string? email, string? token)
+    {
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(token))
+        {
+            TempData[TempDataKeys.Error] = "El enlace para cambiar la contraseña está incompleto. Pide uno nuevo.";
+            return RedirectToAction(nameof(ForgotPassword));
+        }
+
+        return View(new ResetPasswordViewModel { Email = email, Token = token });
+    }
+
+    [AllowAnonymous]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel modelo, CancellationToken cancellationToken)
+    {
+        if (!ModelState.IsValid)
+        {
+            return View(modelo);
+        }
+
+        var resultado = await _auth.ResetPasswordAsync(new ResetPasswordRequest
+        {
+            Email = modelo.Email,
+            Token = modelo.Token,
+            Password = modelo.Password,
+            ConfirmPassword = modelo.ConfirmPassword
+        }, cancellationToken);
+
+        if (resultado.IsFailure)
+        {
+            ModelState.AddResultError(resultado.Error!);
+            return View(modelo);
+        }
+
+        _logger.LogInformation("Contraseña restablecida para {Email}.", modelo.Email);
+        TempData[TempDataKeys.Mensaje] = "Tu contraseña se cambió. Ya puedes iniciar sesión con la nueva.";
+        return RedirectToAction(nameof(Login));
     }
 
     public IActionResult Register()

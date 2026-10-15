@@ -26,6 +26,12 @@ public sealed class SpanishIdentityErrorDescriber : IdentityErrorDescriber
     public override IdentityError PasswordRequiresLower()
         => new() { Code = nameof(PasswordRequiresLower), Description = "La contraseña debe tener al menos una minúscula." };
 
+    public override IdentityError InvalidToken()
+        => new() { Code = nameof(InvalidToken), Description = "El enlace no es válido o ya venció." };
+
+    public override IdentityError LoginAlreadyAssociated()
+        => new() { Code = nameof(LoginAlreadyAssociated), Description = "Esa cuenta externa ya está vinculada a otro usuario." };
+
     public override IdentityError PasswordRequiresNonAlphanumeric()
         => new() { Code = nameof(PasswordRequiresNonAlphanumeric), Description = "La contraseña debe tener al menos un símbolo (por ejemplo * o !)." };
 }

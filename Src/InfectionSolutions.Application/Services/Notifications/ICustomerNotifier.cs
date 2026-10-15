@@ -12,4 +12,7 @@ public interface ICustomerNotifier
 
     /// <summary>Confirmacion de compra con el recibo PDF adjunto.</summary>
     Task<bool> SendPurchaseConfirmationAsync(SaleResponse sale, CancellationToken cancellationToken = default);
+
+    /// <summary>Enlace para elegir una contraseña nueva (clientes del portal y administradores del panel).</summary>
+    Task<bool> SendPasswordResetAsync(string email, string fullName, string resetLink, CancellationToken cancellationToken = default);
 }

@@ -7,7 +7,10 @@ using InfectionSolutions.Domain.Identity;
 using InfectionSolutions.Infrastructure;
 using InfectionSolutions.Infrastructure.Persistence;
 using InfectionSolutions.Infrastructure.Security;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
@@ -34,9 +37,69 @@ builder.Services.AddFileReceiptStorage(Path.IsPathRooted(carpetaRecibos)
 // La clave de firma se valida al arrancar: sin ella la API no sirve tokens.
 builder.Services.AddOptions<JwtOptions>().ValidateDataAnnotations().ValidateOnStart();
 
-builder.Services
+var portal = builder.Configuration.GetSection(PortalOptions.SectionName).Get<PortalOptions>() ?? new PortalOptions();
+builder.Services.Configure<PortalOptions>(builder.Configuration.GetSection(PortalOptions.SectionName));
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ExternalLoginCodes>();
+
+// Llaves de Data Protection en disco (en Docker, un volumen): con ellas se cifran los enlaces de
+// "olvide mi contraseña" y la cookie temporal de Google/GitHub. Si cambiaran al recrear el
+// contenedor, los enlaces ya enviados dejarian de servir.
+var carpetaLlaves = builder.Configuration["DataProtection:KeysPath"] ?? "App_Data/keys";
+builder.Services.AddDataProtection()
+    .SetApplicationName("InfectionSolutions.Api")
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.IsPathRooted(carpetaLlaves)
+        ? carpetaLlaves
+        : Path.Combine(builder.Environment.ContentRootPath, carpetaLlaves)));
+
+var autenticacion = builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer();
+    .AddJwtBearer()
+    // Solo vive entre la respuesta de Google/GitHub y nuestro callback; despues se borra.
+    .AddCookie(ExternalLogin.CookieScheme, options =>
+    {
+        options.Cookie.Name = "InfectionSolutions.External";
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.ExpireTimeSpan = TimeSpan.FromMinutes(10);
+    });
+
+// Cada proveedor se activa solo si tiene credenciales (Authentication:Google|GitHub:ClientId/ClientSecret).
+// La URL de retorno va bajo /api para que en produccion pase por el mismo dominio del portal.
+if (Credenciales(builder.Configuration, ExternalLogin.Google) is var (googleId, googleSecreto))
+{
+    autenticacion.AddGoogle(ExternalLogin.Google, options =>
+    {
+        options.SignInScheme = ExternalLogin.CookieScheme;
+        options.ClientId = googleId;
+        options.ClientSecret = googleSecreto;
+        options.CallbackPath = "/api/auth/external/google/callback";
+        ConfigurarRemoto(options, portal);
+    });
+}
+
+if (Credenciales(builder.Configuration, ExternalLogin.GitHub) is var (githubId, githubSecreto))
+{
+    autenticacion.AddGitHub(ExternalLogin.GitHub, options =>
+    {
+        options.SignInScheme = ExternalLogin.CookieScheme;
+        options.ClientId = githubId;
+        options.ClientSecret = githubSecreto;
+        options.CallbackPath = "/api/auth/external/github/callback";
+        // Sin este permiso GitHub no entrega el correo si el usuario lo tiene privado.
+        options.Scope.Add("user:email");
+        ConfigurarRemoto(options, portal);
+    });
+}
+
+// Detras de dos Nginx (servidor y portal): sin X-Forwarded-Proto la API creeria que la
+// peticion llego por http y le pasaria a Google una URL de retorno http que no coincide.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // Los proxies son contenedores con IP variable: se aceptan los encabezados de cualquiera.
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<IOptions<JwtOptions>>((options, jwt) =>
@@ -144,6 +207,7 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
@@ -185,6 +249,35 @@ if (app.Configuration.GetValue("Database:MigrateOnStartup", true))
 }
 
 app.Run();
+
+static (string Id, string Secreto)? Credenciales(IConfiguration configuration, string proveedor)
+{
+    var id = configuration[$"Authentication:{proveedor}:ClientId"];
+    var secreto = configuration[$"Authentication:{proveedor}:ClientSecret"];
+    return string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(secreto) ? null : (id, secreto);
+}
+
+static void ConfigurarRemoto(RemoteAuthenticationOptions options, PortalOptions portal)
+{
+    // La vuelta del proveedor es una navegacion GET de nivel superior: Lax basta y, a diferencia
+    // de None, el navegador la acepta tambien sin HTTPS (desarrollo local).
+    options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+
+    // Si el usuario cancela en Google/GitHub, o algo falla, vuelve al login del portal con un aviso.
+    options.Events.OnAccessDenied = context =>
+    {
+        context.Response.Redirect(portal.Url($"/ingresar?externo={Uri.EscapeDataString("Cancelaste el inicio de sesión.")}"));
+        context.HandleResponse();
+        return Task.CompletedTask;
+    };
+    options.Events.OnRemoteFailure = context =>
+    {
+        var mensaje = "No se pudo completar el inicio de sesión. Intenta de nuevo.";
+        context.Response.Redirect(portal.Url($"/ingresar?externo={Uri.EscapeDataString(mensaje)}"));
+        context.HandleResponse();
+        return Task.CompletedTask;
+    };
+}
 
 /// <summary>Visible para las pruebas.</summary>
 public partial class Program;

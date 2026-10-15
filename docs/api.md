@@ -61,6 +61,35 @@ curl -X POST http://localhost:5120/api/auth/register -H "Content-Type: applicati
   "password": "Cliente123*", "confirmPassword": "Cliente123*" }'
 ```
 
+### Recuperar la contraseña
+
+1. `POST /api/auth/forgot-password` con `{ "email": "…" }` responde **204 siempre**, exista o no la cuenta
+   (no revela qué correos están registrados). Si el correo es de un **cliente**, le llega un enlace a
+   `<Portal:BaseUrl>/restablecer?email=…&token=…` que sirve **una vez** y vence en **una hora**.
+2. `POST /api/auth/reset-password` con `{ email, token, password, confirmPassword }` cambia la contraseña,
+   quita un bloqueo por intentos fallidos y devuelve la sesión iniciada (igual que el login). Un enlace
+   vencido o ya usado responde 400.
+
+Los administradores recuperan la suya desde el panel (*¿Olvidaste tu contraseña?* en el login).
+
+### Google y GitHub
+
+El inicio de sesión con Google o GitHub es para **clientes** y lo arranca el navegador, no `fetch`:
+
+1. El portal abre `GET /api/auth/external/{google|github}?returnUrl=/carrito`.
+2. La API redirige al proveedor; el usuario autoriza y el proveedor vuelve a
+   `/api/auth/external/{google|github}/callback`.
+3. La API busca la cuenta por ese proveedor o por el correo (y la vincula). Si no existe, la crea con rol
+   Cliente **sin ficha de cliente**.
+4. Redirige al portal a `/ingresar/externo#codigo=…&volver=…`. El código sirve una vez y vence en dos
+   minutos; el portal lo cambia por el token con `POST /api/auth/external/exchange`.
+5. Si `user.customer` llega en `null`, el portal pide documento, edad y teléfono y los envía a
+   `POST /api/auth/complete-profile`, que crea la ficha (o la vincula a la que la empresa ya tenía) y
+   devuelve la sesión actualizada.
+
+`GET /api/auth/external/providers` dice cuáles están configurados: un proveedor sin credenciales no aparece
+y su ruta responde 404.
+
 ## Endpoints
 
 | Método y ruta | Quién | Qué hace |
@@ -68,6 +97,12 @@ curl -X POST http://localhost:5120/api/auth/register -H "Content-Type: applicati
 | `POST /api/auth/login` | Público | Inicia sesión y devuelve el token |
 | `POST /api/auth/register` | Público | Registra un cliente (201) |
 | `GET /api/auth/me` | Autenticado | Perfil y ficha de cliente |
+| `POST /api/auth/forgot-password` | Público | Envía el enlace para cambiar la contraseña (204 siempre) |
+| `POST /api/auth/reset-password` | Público | Cambia la contraseña con el enlace y devuelve la sesión |
+| `GET /api/auth/external/providers` | Público | Proveedores externos configurados |
+| `GET /api/auth/external/{provider}?returnUrl=` | Público (navegador) | Empieza el inicio con Google o GitHub |
+| `POST /api/auth/external/exchange` | Público | Cambia el código de un solo uso por la sesión |
+| `POST /api/auth/complete-profile` | Cliente | Crea la ficha de una cuenta de Google/GitHub |
 | `GET /api/products?q=&category=&active=&page=&pageSize=` | Autenticado | Lista paginada. El cliente solo ve productos activos |
 | `GET /api/products/{id}` | Autenticado | Detalle (un producto inactivo da 404 para el cliente) |
 | `GET /api/products/categories` | Autenticado | Categorías registradas |
@@ -141,6 +176,10 @@ Todos los errores son **ProblemDetails** (`application/problem+json`). Los de va
 | `Email:Provider` | `Smtp` (por defecto) o `Log`, que solo escribe los correos en el log |
 | `Cors:AllowedOrigins` | Orígenes del cliente web (por defecto `http://localhost:4200`) |
 | `Receipts:Path` | Carpeta de los recibos PDF (por defecto `App_Data/recibos`) |
+| `Portal:BaseUrl` | Dirección pública del portal: enlaces de los correos y vuelta de Google/GitHub (por defecto `http://localhost:4200`) |
+| `Authentication:Google:ClientId` / `ClientSecret` | Credenciales de Google (vacías = sin botón de Google) |
+| `Authentication:GitHub:ClientId` / `ClientSecret` | Credenciales de GitHub (vacías = sin botón de GitHub) |
+| `DataProtection:KeysPath` | Carpeta de las llaves que cifran los enlaces de recuperación y la cookie temporal de Google/GitHub (por defecto `App_Data/keys`) |
 | `AutoMapper:LicenseKey` | Opcional. Sin licencia AutoMapper funciona igual y deja un aviso en el log |
 
 ### Correo con Gmail

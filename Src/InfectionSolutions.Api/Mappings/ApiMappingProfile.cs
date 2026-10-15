@@ -39,5 +39,10 @@ public sealed class ApiMappingProfile : Profile
 
         CreateMap<RegisterViewModel, RegisterRequest>()
             .ForMember(d => d.Age, opt => opt.MapFrom(s => s.Age ?? 0));
+
+        CreateMap<ResetPasswordViewModel, ResetPasswordRequest>();
+
+        CreateMap<CompleteProfileViewModel, CompleteProfileRequest>()
+            .ForMember(d => d.Age, opt => opt.MapFrom(s => s.Age ?? 0));
     }
 }

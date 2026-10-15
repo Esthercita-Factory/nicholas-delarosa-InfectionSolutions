@@ -139,6 +139,150 @@ public class AuthServiceTests
     }
 
     [Fact]
+    public async Task RecuperarContrasena_CorreoDeCliente_EnviaEnlaceConCorreoYToken()
+    {
+        _users.FindByEmailAsync("laura@correo.com", Arg.Any<CancellationToken>()).Returns(_cuenta);
+        _users.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns([ApplicationRoles.Customer]);
+        _users.CreatePasswordResetTokenAsync("user-1", Arg.Any<CancellationToken>()).Returns("tok_en-1");
+
+        await _service.RequestPasswordResetAsync(" Laura@Correo.com ", "https://portal.test/restablecer", ApplicationRoles.Customer);
+
+        await _notifier.Received(1).SendPasswordResetAsync(
+            "laura@correo.com", "Laura Mendoza",
+            "https://portal.test/restablecer?email=laura%40correo.com&token=tok_en-1",
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RecuperarContrasena_CorreoInexistente_NoEnviaNada()
+    {
+        await _service.RequestPasswordResetAsync("nadie@correo.com", "https://portal.test/restablecer", ApplicationRoles.Customer);
+
+        await _users.DidNotReceiveWithAnyArgs().CreatePasswordResetTokenAsync(default!, default);
+        await _notifier.DidNotReceiveWithAnyArgs().SendPasswordResetAsync(default!, default!, default!, default);
+    }
+
+    [Fact]
+    public async Task RecuperarContrasena_DesdeElPanel_SoloParaAdministradores()
+    {
+        _users.FindByEmailAsync("laura@correo.com", Arg.Any<CancellationToken>()).Returns(_cuenta);
+        _users.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns([ApplicationRoles.Customer]);
+
+        await _service.RequestPasswordResetAsync("laura@correo.com", "https://panel.test/Account/ResetPassword", ApplicationRoles.Administrator);
+
+        await _users.DidNotReceiveWithAnyArgs().CreatePasswordResetTokenAsync(default!, default);
+        await _notifier.DidNotReceiveWithAnyArgs().SendPasswordResetAsync(default!, default!, default!, default);
+    }
+
+    [Fact]
+    public async Task Restablecer_EnlaceVencido_EsErrorGeneralSinCampo()
+    {
+        _users.ResetPasswordAsync("laura@correo.com", "viejo", "Nueva123*", Arg.Any<CancellationToken>())
+            .Returns([new UserError("Token", "El enlace no es válido o ya venció.")]);
+
+        var resultado = await _service.ResetPasswordAsync(new ResetPasswordRequest
+        {
+            Email = "laura@correo.com", Token = "viejo", Password = "Nueva123*", ConfirmPassword = "Nueva123*"
+        });
+
+        Assert.Equal(ErrorCode.Validation, resultado.Error!.Code);
+        Assert.Null(resultado.Error.Field);
+    }
+
+    [Fact]
+    public async Task Restablecer_ContrasenaDebil_ErrorEnElCampo()
+    {
+        _users.ResetPasswordAsync("laura@correo.com", "tok", "debil", Arg.Any<CancellationToken>())
+            .Returns([new UserError("Password", "La contraseña debe tener al menos 8 caracteres.")]);
+
+        var resultado = await _service.ResetPasswordAsync(new ResetPasswordRequest
+        {
+            Email = "laura@correo.com", Token = "tok", Password = "debil", ConfirmPassword = "debil"
+        });
+
+        Assert.Equal("Password", resultado.Error!.Field);
+    }
+
+    [Fact]
+    public async Task LoginExterno_CuentaNueva_SeCreaComoClienteSinFicha()
+    {
+        var google = new ExternalIdentity("Google", "g-123", "Laura@Gmail.com", "Laura Mendoza");
+        var nueva = new UserAccount("user-g", "laura@gmail.com", "Laura Mendoza");
+        _users.CreateExternalAsync(Arg.Any<ExternalIdentity>(), ApplicationRoles.Customer, Arg.Any<CancellationToken>())
+            .Returns(UserCreation.Success(nueva));
+        _users.GetRolesAsync("user-g", Arg.Any<CancellationToken>()).Returns([ApplicationRoles.Customer]);
+
+        var resultado = await _service.ExternalLoginAsync(google);
+
+        Assert.True(resultado.IsSuccess);
+        Assert.Null(resultado.Value!.User.Customer);
+        await _users.Received(1).CreateExternalAsync(
+            Arg.Is<ExternalIdentity>(i => i.Email == "laura@gmail.com" && i.ProviderKey == "g-123"),
+            ApplicationRoles.Customer, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task LoginExterno_CorreoYaRegistrado_VinculaElProveedorSinCrearOtraCuenta()
+    {
+        var github = new ExternalIdentity("GitHub", "gh-9", "laura@correo.com", "");
+        _users.FindByEmailAsync("laura@correo.com", Arg.Any<CancellationToken>()).Returns(_cuenta);
+        _users.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns([ApplicationRoles.Customer]);
+        _customers.FindByUserIdAsync("user-1", Arg.Any<CancellationToken>())
+            .Returns(new Customer { Id = Guid.NewGuid(), UserId = "user-1", Email = "laura@correo.com", IsActive = true });
+
+        var resultado = await _service.ExternalLoginAsync(github);
+
+        Assert.True(resultado.IsSuccess);
+        Assert.NotNull(resultado.Value!.User.Customer);
+        await _users.Received(1).AddExternalLoginAsync("user-1", Arg.Is<ExternalIdentity>(i => i.Provider == "GitHub"), Arg.Any<CancellationToken>());
+        await _users.DidNotReceiveWithAnyArgs().CreateExternalAsync(default!, default!, default);
+    }
+
+    [Fact]
+    public async Task LoginExterno_SinCorreo_NoCreaNada()
+    {
+        var resultado = await _service.ExternalLoginAsync(new ExternalIdentity("GitHub", "gh-1", "", "laura"));
+
+        Assert.Equal(ErrorCode.Validation, resultado.Error!.Code);
+        await _users.DidNotReceiveWithAnyArgs().CreateExternalAsync(default!, default!, default);
+    }
+
+    [Fact]
+    public async Task CompletarDatos_CreaLaFichaConElCorreoDeLaCuentaYDaLaBienvenida()
+    {
+        _users.FindByIdAsync("user-1", Arg.Any<CancellationToken>()).Returns(_cuenta);
+        _users.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns([ApplicationRoles.Customer]);
+
+        var resultado = await _service.CompleteProfileAsync("user-1", new CompleteProfileRequest
+        {
+            Document = "1.020.458.796", FullName = "", Age = 34, Phone = "3105550101"
+        });
+
+        Assert.True(resultado.IsSuccess);
+        await _customers.Received(1).AddAsync(
+            Arg.Is<Customer>(c => c.Document == "1020458796" && c.Email == "laura@correo.com" && c.FullName == "Laura Mendoza" && c.UserId == "user-1"),
+            Arg.Any<CancellationToken>());
+        Assert.Equal(1, _unitOfWork.SaveCount);
+        await _notifier.Received(1).SendWelcomeAsync("laura@correo.com", "Laura Mendoza", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task CompletarDatos_SiYaTieneFicha_EsConflicto()
+    {
+        _users.FindByIdAsync("user-1", Arg.Any<CancellationToken>()).Returns(_cuenta);
+        _users.GetRolesAsync("user-1", Arg.Any<CancellationToken>()).Returns([ApplicationRoles.Customer]);
+        _customers.FindByUserIdAsync("user-1", Arg.Any<CancellationToken>()).Returns(new Customer { UserId = "user-1" });
+
+        var resultado = await _service.CompleteProfileAsync("user-1", new CompleteProfileRequest
+        {
+            Document = "1020458796", Age = 34, Phone = "3105550101"
+        });
+
+        Assert.Equal(ErrorCode.Conflict, resultado.Error!.Code);
+        await _customers.DidNotReceive().AddAsync(Arg.Any<Customer>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Login_Correcto_DevuelveTokenConRoles()
     {
         _users.CheckPasswordAsync("admin@infection.com", "Admin123*", Arg.Any<CancellationToken>())

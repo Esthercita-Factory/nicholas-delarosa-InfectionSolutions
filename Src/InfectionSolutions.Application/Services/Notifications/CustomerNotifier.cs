@@ -50,6 +50,13 @@ public sealed class CustomerNotifier : ICustomerNotifier
         return await EnviarAsync(mensaje, $"comprobante {sale.SaleNumber}", cancellationToken);
     }
 
+    public async Task<bool> SendPasswordResetAsync(string email, string fullName, string resetLink, CancellationToken cancellationToken = default)
+    {
+        var contenido = EmailTemplates.PasswordReset(fullName, resetLink, _company);
+
+        return await EnviarAsync(new EmailMessage(email, fullName, contenido.Subject, contenido.Html, contenido.Text), "recuperación de contraseña", cancellationToken);
+    }
+
     private async Task<bool> EnviarAsync(EmailMessage mensaje, string motivo, CancellationToken cancellationToken)
     {
         try

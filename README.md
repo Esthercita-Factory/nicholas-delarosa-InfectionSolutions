@@ -95,6 +95,15 @@ imagen. Consume esta API: registro, inicio de sesión con JWT, catálogo, carrit
 correo y *Mis compras*. Solo usa endpoints del rol Cliente (`/api/auth/*`, `GET /api/products*` y
 `/api/me/sales/*`); la API ya permite su origen (`http://localhost:4200`) en `Cors:AllowedOrigins`.
 
+### Recuperar contraseña e inicio con Google y GitHub
+
+- **¿Olvidaste tu contraseña?** en el portal (clientes) y en el panel (administradores): llega por correo un
+  enlace de un solo uso que vence en una hora. La API responde igual exista o no la cuenta.
+- **Continuar con Google / GitHub** en el portal. La primera vez se crea la cuenta con rol Cliente y, antes de
+  entrar al catálogo, el portal pide documento, edad y teléfono para crear la ficha de cliente.
+- Endpoints en [docs/api.md](docs/api.md) y configuración (crear las apps OAuth, URLs de retorno, `.env`) en
+  [docs/despliegue.md](docs/despliegue.md).
+
 ## Arquitectura
 
 Arquitectura limpia en capas: el dominio no depende de nada, los casos de uso viven en Application y la
